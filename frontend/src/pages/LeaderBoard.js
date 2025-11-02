@@ -3,27 +3,42 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PostServices from "../Services/PostServices";
 import toast from "react-hot-toast";
+import VerticalNavbar from "../components/VerticalNavbar";
 import {
-  Home as HomeIcon,
-  TrendingUp as LeaderboardIcon,
-  Compass as ExploreIcon,
   Bell as NotificationsIcon,
-  User as PersonIcon,
   Plus as AddIcon,
   ThumbsUp as ThumbUpIcon,
   FileText as ArticleIcon,
   Eye as VisibilityIcon,
+  Sun as SunIcon,
+  Moon as MoonIcon,
 } from "lucide-react";
+import '../styles/navbar.css';
 import '../styles/leaderboard.css';
 
 const Leaderboard = () => {
   const [topUsers, setTopUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeNav, setActiveNav] = useState("leaderboard");
   const [timeRemaining, setTimeRemaining] = useState({ days: 2, hours: 14, minutes: 56 });
+  const [darkMode, setDarkMode] = useState(false);
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      setDarkMode(true);
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  }, []);
+
+  const toggleDarkMode = () => {
+    const newMode = !darkMode;
+    setDarkMode(newMode);
+    document.documentElement.setAttribute('data-theme', newMode ? 'dark' : 'light');
+    localStorage.setItem('theme', newMode ? 'dark' : 'light');
+  };
 
   const updateUser = () => {
     const user = JSON.parse(localStorage.getItem("todoapp"));
@@ -113,12 +128,11 @@ const Leaderboard = () => {
     }
   };
 
-  const handleNavClick = (navItem) => {
-    setActiveNav(navItem);
-    if (navItem === "home") navigate("/home");
-    else if (navItem === "leaderboard") navigate("/leaderboard");
-    else if (navItem === "explore") navigate("/explore");
-    else if (navItem === "profile") navigate("/profile");
+  const handleLogout = () => {
+    localStorage.removeItem("todoapp");
+    setCurrentUser(null);
+    toast.success("Logged out successfully");
+    navigate("/auth");
   };
 
   const handleViewProfile = (userId) => {
@@ -174,177 +188,152 @@ const Leaderboard = () => {
   };
 
   return (
-    <div className="leaderboard-container">
-      {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="logo">
-          <svg viewBox="0 0 24 24" width="24" height="24">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/>
-            <path stroke="currentColor" strokeWidth="2" d="M12 6v12M6 12h12"/>
-          </svg>
-          <span>Connectiva</span>
-        </div>
-        
-        <nav className="nav-menu">
-          <button 
-            className={`nav-item ${activeNav === 'home' ? 'active' : ''}`}
-            onClick={() => handleNavClick('home')}
-          >
-            <HomeIcon size={20} />
-            <span>Home</span>
-          </button>
-          <button 
-            className={`nav-item ${activeNav === 'leaderboard' ? 'active' : ''}`}
-            onClick={() => handleNavClick('leaderboard')}
-          >
-            <LeaderboardIcon size={20} />
-            <span>Leader Board</span>
-          </button>
-          <button 
-            className={`nav-item ${activeNav === 'explore' ? 'active' : ''}`}
-            onClick={() => handleNavClick('explore')}
-          >
-            <ExploreIcon size={20} />
-            <span>Explore</span>
-          </button>
-        </nav>
-      </aside>
+    <div className="app-container">
+      {/* Vertical Navbar */}
+      <VerticalNavbar currentUser={currentUser} onLogout={handleLogout} />
 
       {/* Main Content */}
       <main className="main-content">
         {/* Top Bar */}
-        <header className="top-bar">
-          <div className="date-display">Today {today}</div>
-          <div className="top-actions">
+        <header className="top-header">
+          <div className="header-left">
+            <h1 className="page-title">All Time Leaderboard</h1>
+          </div>
+          <div className="header-right">
+            <button onClick={toggleDarkMode} className="dark-mode-toggle">
+              {darkMode ? <SunIcon size={20} /> : <MoonIcon size={20} />}
+            </button>
+            <button className="notification-btn">
+              <NotificationsIcon size={20} />
+            </button>
             <button className="new-post-btn" onClick={() => navigate('/create-post')}>
               <AddIcon size={18} />
               New post
             </button>
-            <button className="icon-btn" style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '8px', color: '#6b7280' }}>
-              <NotificationsIcon size={20} />
-            </button>
-            <button 
-              className="icon-btn"
-              onClick={() => handleNavClick('profile')}
-              style={{ background: '#818cf8', border: 'none', cursor: 'pointer', padding: '8px', borderRadius: '50%', color: 'white', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            >
-              <PersonIcon size={20} />
-            </button>
           </div>
         </header>
 
-        {/* Page Title */}
-        <div className="page-title">
-          <h1>All Time Leaderboard</h1>
-        </div>
-
-        {/* User Rankings List */}
-        <div className="rankings-list">
-          {loading ? (
-            <div className="loading-container">
-              <div style={{ width: '50px', height: '50px', border: '4px solid #e5e7eb', borderTop: '4px solid #0d9488', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-            </div>
-          ) : topUsers.length === 0 ? (
-            <div className="no-users">
-              <h3>No Users Yet</h3>
-              <p>Be the first to create posts and climb the leaderboard!</p>
-              <button 
-                onClick={() => navigate("/create-post")}
-                style={{ marginTop: '16px', padding: '12px 24px', backgroundColor: '#0d9488', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '500' }}
-              >
-                Create Your First Post
-              </button>
-            </div>
-          ) : (
-            topUsers.map((user) => {
-              const isCurrentUser = currentUser?._id === user.id;
-              const rankClass = getRankClass(user.rank);
-              const rankIcon = getRankIcon(user.rank);
-              
-              return (
-                <div 
-                  key={user.id} 
-                  className={`user-card ${isCurrentUser ? 'current-user' : ''}`}
-                  onClick={() => handleViewProfile(user.id)}
+        {/* Content Container */}
+        <div className="content-container">
+          {/* User Rankings List */}
+          <div className="rankings-list">
+            {loading ? (
+              <div className="loading-container">
+                <div className="loading-spinner"></div>
+              </div>
+            ) : topUsers.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">🏆</div>
+                <h3 className="empty-state-title">No Users Yet</h3>
+                <p className="empty-state-text">Be the first to create posts and climb the leaderboard!</p>
+                <button 
+                  onClick={() => navigate("/create-post")}
+                  style={{ 
+                    marginTop: '16px', 
+                    padding: '12px 24px', 
+                    backgroundColor: 'var(--primary-color)', 
+                    color: 'white', 
+                    border: 'none', 
+                    borderRadius: '8px', 
+                    cursor: 'pointer', 
+                    fontSize: '14px', 
+                    fontWeight: '500' 
+                  }}
                 >
-                  <div className="user-left">
-                    <div className={`user-rank ${rankClass}`}>
-                      {rankIcon}
-                    </div>
-                    <div 
-                      className="user-avatar"
-                      style={{
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '50%',
-                        backgroundColor: getAvatarColor(user.rank),
-                        color: 'white',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '18px',
-                        fontWeight: '600',
-                        border: '2px solid #f3f4f6'
-                      }}
-                    >
-                      {user.name ? user.name[0].toUpperCase() : 'U'}
-                    </div>
-                    <div className="user-info">
-                      <div className="user-name">
-                        {user.name}
-                        {isCurrentUser && <span className="you-badge">You</span>}
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toast.info('Follow feature coming soon!');
-                          }}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#0d9488',
-                            fontSize: '14px',
-                            fontWeight: '500',
-                            cursor: 'pointer',
-                            padding: '0',
-                            marginLeft: '8px'
-                          }}
-                        >
-                          Follow
-                        </button>
+                  Create Your First Post
+                </button>
+              </div>
+            ) : (
+              topUsers.map((user) => {
+                const isCurrentUser = currentUser?._id === user.id;
+                const rankClass = getRankClass(user.rank);
+                const rankIcon = getRankIcon(user.rank);
+                
+                return (
+                  <div 
+                    key={user.id} 
+                    className={`user-card ${isCurrentUser ? 'current-user' : ''}`}
+                    onClick={() => handleViewProfile(user.id)}
+                  >
+                    <div className="user-left">
+                      <div className={`user-rank ${rankClass}`}>
+                        {rankIcon}
                       </div>
-                      <div className="user-spec">
-                        {getSpecializationLabel(user.specialization)}
+                      <div 
+                        className="user-avatar"
+                        style={{
+                          width: '48px',
+                          height: '48px',
+                          borderRadius: '50%',
+                          backgroundColor: getAvatarColor(user.rank),
+                          color: 'white',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '18px',
+                          fontWeight: '600',
+                          border: '2px solid #f3f4f6'
+                        }}
+                      >
+                        {user.name ? user.name[0].toUpperCase() : 'U'}
+                      </div>
+                      <div className="user-info">
+                        <div className="user-name">
+                          {user.name}
+                          {isCurrentUser && <span className="you-badge">You</span>}
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toast.info('Follow feature coming soon!');
+                            }}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--primary-color)',
+                              fontSize: '14px',
+                              fontWeight: '500',
+                              cursor: 'pointer',
+                              padding: '0',
+                              marginLeft: '8px'
+                            }}
+                          >
+                            Follow
+                          </button>
+                        </div>
+                        <div className="user-spec">
+                          {getSpecializationLabel(user.specialization)}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="user-right">
+                      <div className="user-stat">
+                        <ThumbUpIcon size={18} color="#9ca3af" />
+                        <div>
+                          <div className="stat-value">{user.totalLikes}</div>
+                          <div className="stat-label">Cherries</div>
+                        </div>
+                      </div>
+                      <div className="user-stat">
+                        <ArticleIcon size={18} color="#9ca3af" />
+                        <div>
+                          <div className="stat-value">{user.totalPosts}</div>
+                          <div className="stat-label">Posts</div>
+                        </div>
+                      </div>
+                      <div className="user-stat">
+                        <VisibilityIcon size={18} color="#9ca3af" />
+                        <div>
+                          <div className="stat-value">{user.totalViews}</div>
+                          <div className="stat-label">Views</div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="user-right">
-                    <div className="user-stat">
-                      <ThumbUpIcon size={18} color="#9ca3af" />
-                      <div>
-                        <div className="stat-value">{user.totalLikes}</div>
-                        <div className="stat-label">Cherries</div>
-                      </div>
-                    </div>
-                    <div className="user-stat">
-                      <ArticleIcon size={18} color="#9ca3af" />
-                      <div>
-                        <div className="stat-value">{user.totalPosts}</div>
-                        <div className="stat-label">Posts</div>
-                      </div>
-                    </div>
-                    <div className="user-stat">
-                      <VisibilityIcon size={18} color="#9ca3af" />
-                      <div>
-                        <div className="stat-value">{user.totalViews}</div>
-                        <div className="stat-label">Views</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
+                );
+              })
+            )}
+          </div>
         </div>
       </main>
 
