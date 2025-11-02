@@ -2,11 +2,8 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import PostServices from "../Services/PostServices";
+import VerticalNavbar from "../components/VerticalNavbar";
 import {
-  Home as HomeIcon,
-  TrendingUp as LeaderboardIcon,
-  User as PersonIcon,
-  LogOut as LogoutIcon,
   Edit as EditIcon,
   Mail as EmailIcon,
   Phone as PhoneIcon,
@@ -266,7 +263,6 @@ const FullPostDialog = React.memo(({ open, post, onClose, user, onLike, onAddCom
 // ===== MAIN PROFILE COMPONENT =====
 const Profile = () => {
   const [currentUser, setCurrentUser] = useState(null);
-  const [activeNav, setActiveNav] = useState("profile");
   const [activeTab, setActiveTab] = useState("profile");
   const [darkMode, setDarkMode] = useState(false);
   const [openEditProfile, setOpenEditProfile] = useState(false);
@@ -359,14 +355,6 @@ const Profile = () => {
     window.addEventListener("storage", updateUser);
     return () => window.removeEventListener("storage", updateUser);
   }, []);
-
-  // Navigation Handler
-  const handleNavClick = (navItem) => {
-    setActiveNav(navItem);
-    if (navItem === "home") navigate("/home");
-    else if (navItem === "leaderboard") navigate("/leaderboard");
-    else if (navItem === "profile") navigate("/profile");
-  };
 
   // Logout Handler
   const handleLogout = () => {
@@ -465,51 +453,8 @@ const Profile = () => {
 
   return (
     <div className="app-container">
-      {/* Vertical Sidebar Navigation */}
-      <aside className="sidebar">
-        <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">C</div>
-          <span className="sidebar-logo-text">Connectiva</span>
-        </div>
-        
-        <nav className="sidebar-nav">
-          <button 
-            className={`nav-item ${activeNav === 'home' ? 'active' : ''}`}
-            onClick={() => handleNavClick('home')}
-          >
-            <HomeIcon size={20} />
-            <span>Home</span>
-          </button>
-          <button 
-            className={`nav-item ${activeNav === 'leaderboard' ? 'active' : ''}`}
-            onClick={() => handleNavClick('leaderboard')}
-          >
-            <LeaderboardIcon size={20} />
-            <span>Leader Board</span>
-          </button>
-          <button 
-            className={`nav-item ${activeNav === 'profile' ? 'active' : ''}`}
-            onClick={() => handleNavClick('profile')}
-          >
-            <PersonIcon size={20} />
-            <span>Profile</span>
-          </button>
-        </nav>
-
-        {/* User Section at Bottom */}
-        <div className="sidebar-user">
-          <div className="user-avatar">
-            {currentUser.name?.charAt(0).toUpperCase()}
-          </div>
-          <div className="user-info">
-            <div className="user-name">{currentUser.name}</div>
-            <div className="user-email">{currentUser.email}</div>
-          </div>
-          <button onClick={handleLogout} className="logout-btn" title="Logout">
-            <LogoutIcon size={18} />
-          </button>
-        </div>
-      </aside>
+      {/* Vertical Navbar */}
+      <VerticalNavbar currentUser={currentUser} onLogout={handleLogout} />
 
       {/* Main Content Area */}
       <main className="main-content">
