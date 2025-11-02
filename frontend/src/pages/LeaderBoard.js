@@ -1,207 +1,29 @@
+// Leaderboard.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PostServices from "../Services/PostServices";
 import toast from "react-hot-toast";
-import VerticalNavbar from "../components/VerticalNavbar";
 import {
+  Home as HomeIcon,
+  TrendingUp as LeaderboardIcon,
+  Compass as ExploreIcon,
+  Bell as NotificationsIcon,
+  User as PersonIcon,
+  Plus as AddIcon,
   ThumbsUp as ThumbUpIcon,
-  MessageCircle as ChatBubbleIcon,
-  X as CloseIcon,
-  Sun as SunIcon,
-  Moon as MoonIcon,
-  Bell as BellIcon,
-  Plus as PlusIcon,
-  Trophy,
-  Award,
-  Medal,
+  FileText as ArticleIcon,
+  Eye as VisibilityIcon,
 } from "lucide-react";
-import "../styles/navbar.css";
-import "../styles/leaderboard.css";
-
-const SPECIALIZATIONS = [
-  { value: 'all', label: 'All Projects', icon: '🌟' },
-  { value: 'web-dev', label: 'Web Dev', icon: '🌐' },
-  { value: 'mobile-dev', label: 'Mobile Dev', icon: '📱' },
-  { value: 'ai-ml', label: 'AI/ML', icon: '🤖' },
-  { value: 'data-science', label: 'Data Science', icon: '📊' },
-  { value: 'cloud-computing', label: 'Cloud', icon: '☁️' },
-  { value: 'devops', label: 'DevOps', icon: '⚙️' },
-  { value: 'cybersecurity', label: 'Security', icon: '🔒' },
-  { value: 'blockchain', label: 'Blockchain', icon: '⛓️' },
-  { value: 'game-dev', label: 'Game Dev', icon: '🎮' },
-  { value: 'iot', label: 'IoT', icon: '🔌' },
-  { value: 'ui-ux', label: 'UI/UX', icon: '🎨' },
-  { value: 'other', label: 'Other', icon: '💡' },
-];
-
-const getSpecName = (specValue) => {
-  const spec = SPECIALIZATIONS.find(s => s.value === specValue);
-  return spec ? spec.label : specValue;
-};
-
-const calculateDecayScore = (post) => {
-  return post.likes?.length || 0;
-};
-
-const formatTimeAgo = (dateString) => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  const now = new Date();
-  const seconds = Math.floor((now - date) / 1000);
-
-  let interval = Math.floor(seconds / 31536000); 
-  if (interval >= 1) {
-    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-  }
-
-  interval = Math.floor(seconds / 2592000); 
-  if (interval >= 1) {
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  }
-
-  interval = Math.floor(seconds / 86400); 
-  if (interval >= 1) {
-    if (interval === 1) return 'yesterday';
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); 
-  }
-
-  interval = Math.floor(seconds / 3600); 
-  if (interval >= 1) {
-    return interval + (interval === 1 ? ' hour ago' : ' hours ago');
-  }
-
-  interval = Math.floor(seconds / 60); 
-  if (interval >= 1) {
-    return interval + (interval === 1 ? ' minute ago' : ' minutes ago');
-  }
-
-  if (seconds < 5) return 'just now';
-  return Math.floor(seconds) + ' seconds ago';
-};
-
-const renderDescriptionWithLinks = (text) => {
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const parts = text.split(urlRegex);
-
-  return parts.map((part, index) => {
-    if (part.match(urlRegex)) {
-      return (
-        <a 
-          key={index} 
-          href={part} 
-          target="_blank" 
-          rel="noopener noreferrer"
-          style={{ color: 'var(--primary-color)', textDecoration: 'underline' }}
-        >
-          {part}
-        </a>
-      );
-    }
-    return part;
-  });
-};
-
-const PostDetailDialog = ({ open, handleClose, post }) => {
-  if (!post || !open) return null;
-
-  const mediaUrl = post.media?.url || post.image || '';
-  const isVideo = post.media?.type === 'video';
-  const postRank = post.rank !== undefined ? post.rank : 'N/A';
-  const likeScore = post.decayScore?.toFixed(0) || 'N/A';
-
-  return (
-    <div className="modal-overlay" onClick={handleClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px' }}>
-        <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 className="modal-title">{post.title}</h2>
-          <button onClick={handleClose} className="post-action-btn">
-            <CloseIcon size={20} />
-          </button>
-        </div>
-        
-        <div className="modal-body" style={{ padding: 0 }}>
-          {mediaUrl && (
-            <div style={{ width: '100%', backgroundColor: 'black' }}>
-              {isVideo ? (
-                <video 
-                  src={mediaUrl} 
-                  controls 
-                  autoPlay 
-                  loop
-                  style={{ width: '100%', maxHeight: 600, objectFit: 'contain' }}
-                />
-              ) : (
-                <img 
-                  src={mediaUrl} 
-                  alt={post.title} 
-                  style={{ width: '100%', height: 400, objectFit: 'contain' }}
-                />
-              )}
-            </div>
-          )}
-          
-          <div style={{ padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div className="author-avatar">
-                  {post.user?.name ? post.user.name[0] : 'U'}
-                </div>
-                <span style={{ fontWeight: 'bold' }}>{post.user?.name || "Unknown User"}</span>
-              </div>
-              <span className="spec-badge">{getSpecName(post.specialization)}</span>
-            </div>
-
-            <p style={{ whiteSpace: 'pre-wrap', marginBottom: '16px', lineHeight: '1.6' }}>
-              {renderDescriptionWithLinks(post.description)}
-            </p>
-
-            <div style={{ display: 'flex', gap: '24px', color: 'var(--text-secondary)', fontSize: '14px' }}>
-              <span>
-                <ThumbUpIcon size={16} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                {post.likes.length} Likes
-              </span>
-              <span>
-                <ChatBubbleIcon size={16} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                {post.comments.length} Comments
-              </span>
-              <span style={{ marginLeft: 'auto', fontWeight: 'bold', color: 'var(--primary-color)' }}>
-                Rank: #{postRank + 1} | Likes: {likeScore}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+import '../styles/leaderboard.css';
 
 const Leaderboard = () => {
-  const [topPosts, setTopPosts] = useState([]); 
+  const [topUsers, setTopUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [specializationFilter, setSpecializationFilter] = useState("all"); 
-  const [expandedPostId, setExpandedPostId] = useState(null);
-  const [newCommentText, setNewCommentText] = useState({}); 
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedPost, setSelectedPost] = useState(null);
-  const [darkMode, setDarkMode] = useState(false);
+  const [activeNav, setActiveNav] = useState("leaderboard");
+  const [timeRemaining, setTimeRemaining] = useState({ days: 2, hours: 14, minutes: 56 });
 
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-      setDarkMode(true);
-      document.documentElement.setAttribute('data-theme', 'dark');
-    }
-  }, []);
-
-  const toggleDarkMode = () => {
-    const newMode = !darkMode;
-    setDarkMode(newMode);
-    document.documentElement.setAttribute('data-theme', newMode ? 'dark' : 'light');
-    localStorage.setItem('theme', newMode ? 'dark' : 'light');
-  };
 
   const updateUser = () => {
     const user = JSON.parse(localStorage.getItem("todoapp"));
@@ -210,372 +32,342 @@ const Leaderboard = () => {
 
   useEffect(() => {
     updateUser();
-    fetchTopPosts(specializationFilter === 'all' ? '' : specializationFilter);
+    fetchAllUsersRanking();
     
     const intervalId = setInterval(() => {
-      fetchTopPosts(specializationFilter === 'all' ? '' : specializationFilter);
+      fetchAllUsersRanking();
+    }, 60000);
+
+    // Update timer every minute
+    const timerInterval = setInterval(() => {
+      updateTimer();
     }, 60000);
 
     window.addEventListener("storage", updateUser);
     return () => {
       window.removeEventListener("storage", updateUser);
       clearInterval(intervalId);
+      clearInterval(timerInterval);
     }
-  }, [specializationFilter]); 
+  }, []);
 
-  const fetchTopPosts = async (specialization = "") => {
+  const updateTimer = () => {
+    const now = new Date();
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const diff = nextMonth - now;
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    setTimeRemaining({ days, hours, minutes });
+  };
+
+  const fetchAllUsersRanking = async () => {
     try {
       setLoading(true);
-      const res = await PostServices.getAllPosts(specialization); 
+      const res = await PostServices.getAllPosts();
+      const posts = res.data;
 
-      let postsWithScores = res.data.map(post => ({
-        ...post,
-        decayScore: calculateDecayScore(post)
+      // Calculate stats per user
+      const userStatsMap = {};
+
+      posts.forEach(post => {
+        const userId = post.user?._id;
+        if (!userId) return;
+
+        if (!userStatsMap[userId]) {
+          userStatsMap[userId] = {
+            id: userId,
+            name: post.user.name,
+            specialization: post.user.specialization || 'other',
+            avatar: post.user.avatar || null,
+            totalLikes: 0,
+            totalPosts: 0,
+            totalViews: 0,
+          };
+        }
+
+        userStatsMap[userId].totalLikes += post.likes?.length || 0;
+        userStatsMap[userId].totalPosts += 1;
+        userStatsMap[userId].totalViews += post.views || 0;
+      });
+
+      // Convert to array and sort by total likes
+      const userRankings = Object.values(userStatsMap);
+      userRankings.sort((a, b) => b.totalLikes - a.totalLikes);
+
+      // Add rank numbers
+      const rankedUsers = userRankings.map((user, index) => ({
+        ...user,
+        rank: index + 1,
       }));
 
-      const sortedPosts = postsWithScores.sort((a, b) => b.decayScore - a.decayScore);
-      const top10 = sortedPosts.slice(0, 10).map((post, index) => ({
-        ...post,
-        rank: index
-      }));
-      
-      setTopPosts(top10);
+      setTopUsers(rankedUsers);
       
     } catch (error) {
-      console.error("Error fetching top posts:", error);
+      console.error("Error fetching user rankings:", error);
       toast.error("Failed to load leaderboard");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOpenDialog = (post) => {
-    setSelectedPost(post);
-    setIsDialogOpen(true);
-  };
-
-  const handleCloseDialog = () => {
-    setIsDialogOpen(false);
-    setSelectedPost(null);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("todoapp");
-    setCurrentUser(null);
-    toast.success("Logged out successfully");
-    navigate("/auth");
-  };
-
-  const handleLike = async (postId) => {
-    if (!currentUser?.token) {
-      toast.error("You must be logged in to like a post");
-      navigate("/auth");
-      return;
-    }
-
-    try {
-      const res = await PostServices.likePost(postId);
-      const updatedPost = res.data;
-
-      setTopPosts((prevPosts) => {
-        const updated = prevPosts.map((post) =>
-          post._id === updatedPost._id ? { ...updatedPost, decayScore: calculateDecayScore(updatedPost), rank: post.rank } : post
-        );
-        const reRanked = updated.sort((a, b) => b.decayScore - a.decayScore).map((post, index) => ({...post, rank: index}));
-        return reRanked;
-      });
-      
-      if (selectedPost && selectedPost._id === updatedPost._id) {
-        setSelectedPost(prev => ({ 
-          ...prev, 
-          ...updatedPost, 
-          decayScore: calculateDecayScore(updatedPost) 
-        }));
-      }
-
-      const likedByUser = updatedPost.likes.some(
-        (like) => (like.user?._id || like.user) === currentUser?._id
-      );
-      toast.success(likedByUser ? "Post liked!" : "Post unliked!");
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to like/unlike post");
-    }
-  };
-
-  const handleAddComment = async (postId) => {
-    const text = newCommentText[postId]?.trim();
-    if (!text) {
-      toast.error("Comment cannot be empty.");
-      return;
-    }
-    if (!currentUser?.token) {
-      toast.error("You must be logged in to comment.");
-      navigate("/auth");
-      return;
-    }
-
-    try {
-      const res = await PostServices.addComment(postId, text);
-      const updatedPost = res.data; 
-
-      setTopPosts((prevPosts) => {
-        const updated = prevPosts.map((post) =>
-          post._id === updatedPost._id ? { ...updatedPost, decayScore: calculateDecayScore(updatedPost), rank: post.rank } : post
-        );
-        const reRanked = updated.sort((a, b) => b.decayScore - a.decayScore).map((post, index) => ({...post, rank: index}));
-        return reRanked;
-      });
-      
-      if (selectedPost && selectedPost._id === updatedPost._id) {
-        setSelectedPost(prev => ({ 
-          ...prev, 
-          ...updatedPost, 
-          decayScore: calculateDecayScore(updatedPost) 
-        }));
-      }
-
-      setNewCommentText(prev => ({ ...prev, [postId]: "" }));
-      toast.success("Comment added!");
-
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to add comment.");
-    }
-  };
-  
-  const handleToggleComments = (postId) => {
-    setExpandedPostId(prevId => (prevId === postId ? null : postId));
+  const handleNavClick = (navItem) => {
+    setActiveNav(navItem);
+    if (navItem === "home") navigate("/home");
+    else if (navItem === "leaderboard") navigate("/leaderboard");
+    else if (navItem === "explore") navigate("/explore");
+    else if (navItem === "profile") navigate("/profile");
   };
 
   const handleViewProfile = (userId) => {
-    if (userId) {
-      if (userId === currentUser?._id) {
-        navigate("/profile");
-      } else {
-        navigate(`/profile-view/${userId}`);
-      }
+    if (currentUser?._id === userId) {
+      navigate("/profile");
     } else {
-      toast.error("User information is unavailable.");
+      navigate(`/profile-view/${userId}`);
     }
   };
 
-  const getRankIcon = (index) => {
-    if (index === 0) return <Trophy size={24} />;
-    if (index === 1) return <Award size={24} />;
-    if (index === 2) return <Medal size={24} />;
-    return `#${index + 1}`;
+  const today = new Date().toLocaleDateString('en-US', { 
+    weekday: 'short', 
+    month: 'short', 
+    day: 'numeric' 
+  });
+
+  const getRankIcon = (rank) => {
+    if (rank === 1) return '🥇';
+    if (rank === 2) return '🥈';
+    if (rank === 3) return '🥉';
+    return `#${rank}`;
+  };
+
+  const getRankClass = (rank) => {
+    if (rank === 1) return 'gold';
+    if (rank === 2) return 'silver';
+    if (rank === 3) return 'bronze';
+    return '';
+  };
+
+  const getSpecializationLabel = (spec) => {
+    const labels = {
+      'ui-ux': 'UI/UX Designer',
+      'web-dev': 'Web Developer',
+      'mobile-dev': 'Mobile Developer',
+      'ai-ml': 'AI/ML Engineer',
+      'data-science': 'Data Scientist',
+      'cloud-computing': 'Cloud Engineer',
+      'devops': 'DevOps Engineer',
+      'cybersecurity': 'Security Expert',
+      'blockchain': 'Blockchain Developer',
+      'game-dev': 'Game Developer',
+      'iot': 'IoT Engineer',
+    };
+    return labels[spec] || 'Developer';
+  };
+
+  const getAvatarColor = (rank) => {
+    if (rank === 1) return '#ffd700';
+    if (rank === 2) return '#c0c0c0';
+    if (rank === 3) return '#cd7f32';
+    return '#6366f1';
   };
 
   return (
-    <div className="app-container">
-      {/* Vertical Navbar */}
-      <VerticalNavbar currentUser={currentUser} onLogout={handleLogout} />
+    <div className="leaderboard-container">
+      {/* Sidebar */}
+      <aside className="sidebar">
+        <div className="logo">
+          <svg viewBox="0 0 24 24" width="24" height="24">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/>
+            <path stroke="currentColor" strokeWidth="2" d="M12 6v12M6 12h12"/>
+          </svg>
+          <span>Connectiva</span>
+        </div>
+        
+        <nav className="nav-menu">
+          <button 
+            className={`nav-item ${activeNav === 'home' ? 'active' : ''}`}
+            onClick={() => handleNavClick('home')}
+          >
+            <HomeIcon size={20} />
+            <span>Home</span>
+          </button>
+          <button 
+            className={`nav-item ${activeNav === 'leaderboard' ? 'active' : ''}`}
+            onClick={() => handleNavClick('leaderboard')}
+          >
+            <LeaderboardIcon size={20} />
+            <span>Leader Board</span>
+          </button>
+          <button 
+            className={`nav-item ${activeNav === 'explore' ? 'active' : ''}`}
+            onClick={() => handleNavClick('explore')}
+          >
+            <ExploreIcon size={20} />
+            <span>Explore</span>
+          </button>
+        </nav>
+      </aside>
 
-      {/* Main Content Area */}
+      {/* Main Content */}
       <main className="main-content">
-        {/* Top Header */}
-        <header className="top-header">
-          <div className="header-left">
-            <h1 className="page-title">Leaderboard</h1>
-          </div>
-          <div className="header-right">
-            <button onClick={toggleDarkMode} className="dark-mode-toggle">
-              {darkMode ? <SunIcon size={20} /> : <MoonIcon size={20} />}
-            </button>
-            <button className="notification-btn">
-              <BellIcon size={20} />
-            </button>
-            <button className="new-post-btn" onClick={() => navigate("/create-post")}>
-              <PlusIcon size={18} />
+        {/* Top Bar */}
+        <header className="top-bar">
+          <div className="date-display">Today {today}</div>
+          <div className="top-actions">
+            <button className="new-post-btn" onClick={() => navigate('/create-post')}>
+              <AddIcon size={18} />
               New post
+            </button>
+            <button className="icon-btn" style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '8px', color: '#6b7280' }}>
+              <NotificationsIcon size={20} />
+            </button>
+            <button 
+              className="icon-btn"
+              onClick={() => handleNavClick('profile')}
+              style={{ background: '#818cf8', border: 'none', cursor: 'pointer', padding: '8px', borderRadius: '50%', color: 'white', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <PersonIcon size={20} />
             </button>
           </div>
         </header>
 
-        {/* Content Container */}
-        <div className="content-container">
-          {/* Leaderboard Header */}
-          <div className="leaderboard-header">
-            <h2 className="leaderboard-title">
-              <Trophy size={36} style={{ color: '#ffd700' }} />
-              All-Time Popularity Leaderboard
-            </h2>
-            <p className="leaderboard-subtitle">
-              Ranks posts based purely on the Total Number of Likes
-            </p>
-          </div>
+        {/* Page Title */}
+        <div className="page-title">
+          <h1>All Time Leaderboard</h1>
+        </div>
 
-          {/* Filter Section */}
-          <div className="filter-section">
-            <select
-              className="filter-dropdown"
-              value={specializationFilter}
-              onChange={(e) => setSpecializationFilter(e.target.value)}
-            >
-              {SPECIALIZATIONS.map((spec) => (
-                <option key={spec.value} value={spec.value}>
-                  {spec.icon} {spec.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Leaderboard Posts Container */}
-          <div className="leaderboard-container">
-            {loading ? (
-              <div className="loading-container">
-                <div className="loading-spinner"></div>
-              </div>
-            ) : topPosts.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-state-icon">🏆</div>
-                <h3 className="empty-state-title">No posts yet</h3>
-                <p className="empty-state-text">Be the first to post in this category!</p>
-              </div>
-            ) : (
-              topPosts.map((post, index) => {
-                const likedByUser = post.likes.some(
-                  (like) => (like.user?._id || like.user) === currentUser?._id
-                );
-                const isExpanded = expandedPostId === post._id; 
-                const postUser = post.user;
-                const postUserId = postUser?._id;
-                const postUserName = postUser?.name || "Unknown";
-                const timeAgo = formatTimeAgo(post.createdAt);
-                const totalLikes = post.decayScore?.toFixed(0) || '0';
-                const mediaUrl = post.media?.url || post.image || '';
-
-                return (
-                  <div 
-                    key={post._id} 
-                    className={`leaderboard-item ${index < 3 ? `rank-${index + 1}` : 'rank-other'}`}
-                  >
-                    {/* Rank Badge */}
-                    <div className={`rank-badge ${index < 3 ? `rank-${index + 1}` : 'rank-other'}`}>
-                      {getRankIcon(index)}
+        {/* User Rankings List */}
+        <div className="rankings-list">
+          {loading ? (
+            <div className="loading-container">
+              <div style={{ width: '50px', height: '50px', border: '4px solid #e5e7eb', borderTop: '4px solid #0d9488', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+            </div>
+          ) : topUsers.length === 0 ? (
+            <div className="no-users">
+              <h3>No Users Yet</h3>
+              <p>Be the first to create posts and climb the leaderboard!</p>
+              <button 
+                onClick={() => navigate("/create-post")}
+                style={{ marginTop: '16px', padding: '12px 24px', backgroundColor: '#0d9488', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '500' }}
+              >
+                Create Your First Post
+              </button>
+            </div>
+          ) : (
+            topUsers.map((user) => {
+              const isCurrentUser = currentUser?._id === user.id;
+              const rankClass = getRankClass(user.rank);
+              const rankIcon = getRankIcon(user.rank);
+              
+              return (
+                <div 
+                  key={user.id} 
+                  className={`user-card ${isCurrentUser ? 'current-user' : ''}`}
+                  onClick={() => handleViewProfile(user.id)}
+                >
+                  <div className="user-left">
+                    <div className={`user-rank ${rankClass}`}>
+                      {rankIcon}
                     </div>
-                    
-                    {/* Post Media */}
-                    {mediaUrl && (
-                      <img 
-                        src={mediaUrl} 
-                        alt={post.title} 
-                        className="item-media"
-                        onClick={() => handleOpenDialog(post)}
-                      />
-                    )}
-
-                    {/* Post Content */}
-                    <div className="leaderboard-content">
-                      <div className="item-header">
-                        <h3 
-                          className="item-title"
-                          onClick={() => handleOpenDialog(post)}
+                    <div 
+                      className="user-avatar"
+                      style={{
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '50%',
+                        backgroundColor: getAvatarColor(user.rank),
+                        color: 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '18px',
+                        fontWeight: '600',
+                        border: '2px solid #f3f4f6'
+                      }}
+                    >
+                      {user.name ? user.name[0].toUpperCase() : 'U'}
+                    </div>
+                    <div className="user-info">
+                      <div className="user-name">
+                        {user.name}
+                        {isCurrentUser && <span className="you-badge">You</span>}
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toast.info('Follow feature coming soon!');
+                          }}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#0d9488',
+                            fontSize: '14px',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                            padding: '0',
+                            marginLeft: '8px'
+                          }}
                         >
-                          {post.title}
-                        </h3>
-                      </div>
-
-                      <p className="item-description">{post.description}</p>
-                      
-                      {/* Author Info */}
-                      <div 
-                        className="item-author"
-                        onClick={() => handleViewProfile(postUserId)}
-                      >
-                        <div className="author-avatar">
-                          {postUserName.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="author-info">
-                          <div className="author-name">{postUserName}</div>
-                          <div className="author-role">Posted {timeAgo}</div>
-                        </div>
-                      </div>
-
-                      {/* Stats and Actions */}
-                      <div className="item-stats">
-                        <button
-                          onClick={() => handleLike(post._id)}
-                          className={`stat-btn ${likedByUser ? 'liked' : ''}`}
-                          disabled={!currentUser?.token}
-                        >
-                          <ThumbUpIcon size={18} />
-                          {post.likes.length}
+                          Follow
                         </button>
-
-                        <button
-                          onClick={() => handleToggleComments(post._id)}
-                          className={`stat-btn ${isExpanded ? 'active' : ''}`}
-                        >
-                          <ChatBubbleIcon size={18} />
-                          {post.comments.length}
-                        </button>
-                        
-                        <div className="score-display">
-                          Likes: {totalLikes}
-                        </div>
+                      </div>
+                      <div className="user-spec">
+                        {getSpecializationLabel(user.specialization)}
                       </div>
                     </div>
-
-                    {/* Expandable Comments Section */}
-                    {isExpanded && (
-                      <div className="comments-section">
-                        {/* Comment Input */}
-                        {currentUser?.token && (
-                          <div className="comment-input-container">
-                            <textarea
-                              className="comment-input"
-                              placeholder="Add a comment..."
-                              value={newCommentText[post._id] || ""}
-                              onChange={(e) => setNewCommentText(prev => ({ ...prev, [post._id]: e.target.value }))}
-                              rows={2}
-                            />
-                            <button 
-                              className="comment-submit-btn"
-                              onClick={() => handleAddComment(post._id)}
-                            >
-                              Post
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Comments List */}
-                        <div className="comments-list">
-                          {post.comments.length > 0 ? (
-                            post.comments.slice().reverse().slice(0, 5).map((comment, i) => ( 
-                              <div key={comment._id || i} className="comment-item">
-                                <div className="comment-avatar">
-                                  {comment.user?.name ? comment.user.name[0] : 'A'}
-                                </div>
-                                <div className="comment-content">
-                                  <div className="comment-author">
-                                    {comment.user?.name || "Anonymous"}
-                                  </div>
-                                  <p className="comment-text">{comment.text}</p>
-                                </div>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="no-comments">
-                              No comments yet. Be the first!
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
                   </div>
-                );
-              })
-            )}
-          </div>
+                  
+                  <div className="user-right">
+                    <div className="user-stat">
+                      <ThumbUpIcon size={18} color="#9ca3af" />
+                      <div>
+                        <div className="stat-value">{user.totalLikes}</div>
+                        <div className="stat-label">Cherries</div>
+                      </div>
+                    </div>
+                    <div className="user-stat">
+                      <ArticleIcon size={18} color="#9ca3af" />
+                      <div>
+                        <div className="stat-value">{user.totalPosts}</div>
+                        <div className="stat-label">Posts</div>
+                      </div>
+                    </div>
+                    <div className="user-stat">
+                      <VisibilityIcon size={18} color="#9ca3af" />
+                      <div>
+                        <div className="stat-value">{user.totalViews}</div>
+                        <div className="stat-label">Views</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </main>
-      
-      {/* Post Detail Dialog */}
-      <PostDetailDialog 
-        open={isDialogOpen}
-        handleClose={handleCloseDialog}
-        post={selectedPost}
-      />
+
+      {/* Right Sidebar */}
+      <aside className="right-sidebar">
+        <div className="voting-timer">
+          <div className="timer-title">Voting ends in</div>
+          <div className="timer-values">
+            <div className="timer-value">
+              <span className="timer-number">{String(timeRemaining.days).padStart(2, '0')}</span>
+              <span className="timer-label">Days</span>
+            </div>
+            <div className="timer-value">
+              <span className="timer-number">{String(timeRemaining.hours).padStart(2, '0')}</span>
+              <span className="timer-label">Hrs</span>
+            </div>
+            <div className="timer-value">
+              <span className="timer-number">{String(timeRemaining.minutes).padStart(2, '0')}</span>
+              <span className="timer-label">Mins</span>
+            </div>
+          </div>
+        </div>
+      </aside>
     </div>
   );
 };

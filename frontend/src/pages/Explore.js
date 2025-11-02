@@ -4,18 +4,18 @@ import PostServices from "../Services/PostServices";
 import toast from "react-hot-toast";
 import VerticalNavbar from "../components/VerticalNavbar";
 import {
-  ThumbsUp as ThumbUpIcon,
-  MessageCircle as ChatBubbleIcon,
-  X as CloseIcon,
   Sun as SunIcon,
   Moon as MoonIcon,
   Bell as BellIcon,
   Plus as PlusIcon,
   ChevronLeft,
   ChevronRight,
+  ThumbsUp as ThumbUpIcon,
+  MessageCircle as ChatBubbleIcon,
+  X as CloseIcon,
 } from "lucide-react";
 import "../styles/navbar.css";
-import "../styles/home.css";
+import "../styles/explore.css";
 
 const SPECIALIZATIONS = [
   { value: 'all', label: 'All Projects', icon: '🌟' },
@@ -36,6 +36,36 @@ const SPECIALIZATIONS = [
 const getSpecLabel = (specValue) => {
   const spec = SPECIALIZATIONS.find(s => s.value === specValue);
   return spec ? `${spec.icon} ${spec.label}` : specValue;
+};
+
+// Get week start and end dates
+const getWeekRange = (weekOffset = 0) => {
+  const now = new Date();
+  const currentDay = now.getDay();
+  const diff = currentDay === 0 ? 6 : currentDay - 1;
+  
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - diff - (weekOffset * 7));
+  weekStart.setHours(0, 0, 0, 0);
+  
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  weekEnd.setHours(23, 59, 59, 999);
+  
+  return { weekStart, weekEnd };
+};
+
+// Format week range display
+const formatWeekRange = (weekStart, weekEnd) => {
+  const startMonth = weekStart.toLocaleDateString('en-US', { month: 'short' });
+  const endMonth = weekEnd.toLocaleDateString('en-US', { month: 'short' });
+  const startDay = weekStart.getDate();
+  const endDay = weekEnd.getDate();
+  
+  if (startMonth === endMonth) {
+    return `${startMonth} ${startDay}-${endDay}`;
+  }
+  return `${startMonth} ${startDay}-${endMonth} ${endDay}`;
 };
 
 const formatRelativeTime = (dateString) => {
@@ -100,77 +130,7 @@ const renderClickableText = (text) => {
   return parts;
 };
 
-// Get week start and end dates
-const getWeekRange = (weekOffset = 0) => {
-  const now = new Date();
-  const currentDay = now.getDay();
-  const diff = currentDay === 0 ? 6 : currentDay - 1; // Monday as start of week
-  
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - diff - (weekOffset * 7));
-  weekStart.setHours(0, 0, 0, 0);
-  
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 6);
-  weekEnd.setHours(23, 59, 59, 999);
-  
-  return { weekStart, weekEnd };
-};
-
-// Format week range display
-const formatWeekRange = (weekStart, weekEnd) => {
-  const startMonth = weekStart.toLocaleDateString('en-US', { month: 'short' });
-  const endMonth = weekEnd.toLocaleDateString('en-US', { month: 'short' });
-  const startDay = weekStart.getDate();
-  const endDay = weekEnd.getDate();
-  
-  if (startMonth === endMonth) {
-    return `${startMonth} ${startDay}-${endDay}`;
-  }
-  return `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
-};
-
-// Get week number
-const getWeekNumber = (date) => {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-};
-
-// Get the most recent like timestamp from a post
-const getMostRecentLikeTime = (post) => {
-  if (!post.likes || post.likes.length === 0) return 0;
-  
-  const timestamps = post.likes
-    .map(like => like.createdAt ? new Date(like.createdAt).getTime() : 0)
-    .filter(time => time > 0);
-  
-  if (timestamps.length > 0) {
-    return Math.max(...timestamps);
-  }
-  
-  return post.createdAt ? new Date(post.createdAt).getTime() : 0;
-};
-
-// Rank posts by number of likes, then by most recent like
-const rankPosts = (posts) => {
-  return posts.sort((a, b) => {
-    const aLikes = a.likes?.length || 0;
-    const bLikes = b.likes?.length || 0;
-    
-    if (aLikes !== bLikes) {
-      return bLikes - aLikes;
-    }
-    
-    const aRecentLike = getMostRecentLikeTime(a);
-    const bRecentLike = getMostRecentLikeTime(b);
-    return bRecentLike - aRecentLike;
-  });
-};
-
-const Home = () => {
+const Explore = () => {
   const [posts, setPosts] = useState([]);
   const [filteredPosts, setFilteredPosts] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
@@ -178,9 +138,9 @@ const Home = () => {
   const [selectedSpec, setSelectedSpec] = useState("all");
   const [selectedWeekOffset, setSelectedWeekOffset] = useState(0);
   const [availableWeeks, setAvailableWeeks] = useState([]);
+  const [darkMode, setDarkMode] = useState(false);
   const [postDialogOpen, setPostDialogOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
-  const [darkMode, setDarkMode] = useState(false);
 
   const navigate = useNavigate();
 
@@ -221,7 +181,9 @@ const Home = () => {
         const postDate = new Date(post.createdAt);
         const daysDiff = Math.floor((now - postDate) / (1000 * 60 * 60 * 24));
         const weekOffset = Math.floor(daysDiff / 7);
-        weeks.add(weekOffset);
+        if (weekOffset >= 0) {
+          weeks.add(weekOffset);
+        }
       });
       
       const sortedWeeks = Array.from(weeks).sort((a, b) => a - b);
@@ -242,10 +204,7 @@ const Home = () => {
       filtered = filtered.filter(post => post.specialization === selectedSpec);
     }
     
-    const ranked = rankPosts([...filtered]);
-    const top10 = ranked.slice(0, 10);
-    
-    setFilteredPosts(top10);
+    setFilteredPosts(filtered);
   }, [selectedSpec, selectedWeekOffset, posts]);
 
   const fetchPosts = async () => {
@@ -267,6 +226,26 @@ const Home = () => {
     setPosts([]);
     toast.success("Logged out successfully");
     navigate("/auth");
+  };
+
+  const handlePreviousWeek = () => {
+    setSelectedWeekOffset(prev => prev + 1);
+  };
+
+  const handleNextWeek = () => {
+    if (selectedWeekOffset > 0) {
+      setSelectedWeekOffset(prev => prev - 1);
+    }
+  };
+
+  const handlePostClick = (post) => {
+    setSelectedPost(post);
+    setPostDialogOpen(true);
+  };
+
+  const handleClosePostDialog = () => {
+    setPostDialogOpen(false);
+    setSelectedPost(null);
   };
 
   const updatePostInState = (updatedPost) => {
@@ -346,26 +325,6 @@ const Home = () => {
     }
   };
 
-  const handleOpenPostDialog = (post) => {
-    setSelectedPost(post);
-    setPostDialogOpen(true);
-  };
-
-  const handleClosePostDialog = () => {
-    setPostDialogOpen(false);
-    setSelectedPost(null);
-  };
-
-  const handlePreviousWeek = () => {
-    setSelectedWeekOffset(prev => prev + 1);
-  };
-
-  const handleNextWeek = () => {
-    if (selectedWeekOffset > 0) {
-      setSelectedWeekOffset(prev => prev - 1);
-    }
-  };
-
   const FullPostDialog = ({ open, post, onClose, user, onLike, onAddComment, onNavigateProfile }) => {
     const [dialogCommentText, setDialogCommentText] = useState(""); 
 
@@ -418,6 +377,12 @@ const Home = () => {
                   <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Posted: {relativeTime}</div>
                 </div>
               </div>
+              
+              {post.specialization && (
+                <span className="spec-badge" style={{ marginBottom: '16px', display: 'inline-block' }}>
+                  {getSpecLabel(post.specialization)}
+                </span>
+              )}
               
               {hasMedia && (
                 <div style={{ marginBottom: '16px' }}>
@@ -511,19 +476,21 @@ const Home = () => {
   };
 
   const { weekStart, weekEnd } = getWeekRange(selectedWeekOffset);
-  const weekNumber = getWeekNumber(weekStart);
   const weekRangeDisplay = formatWeekRange(weekStart, weekEnd);
+  const currentDate = new Date().toLocaleDateString('en-US', { 
+    weekday: 'short', 
+    month: 'short', 
+    day: 'numeric' 
+  });
 
   return (
     <div className="app-container">
-      {/* Vertical Navbar */}
       <VerticalNavbar currentUser={currentUser} onLogout={handleLogout} />
 
-      {/* Main Content */}
       <main className="main-content">
         <header className="top-header">
           <div className="header-left">
-            <h1 className="page-title">Best of Week {weekNumber}</h1>
+            <h1 className="page-title">Today {currentDate}</h1>
           </div>
           <div className="header-right">
             <button onClick={toggleDarkMode} className="dark-mode-toggle">
@@ -539,203 +506,107 @@ const Home = () => {
           </div>
         </header>
 
-        <div className="content-container">
+        <div className="explore-container">
           {/* Week Selector */}
-          <div style={{ 
-            marginBottom: '24px', 
-            padding: '16px 0',
-            borderBottom: '1px solid var(--border-color)'
-          }}>
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              gap: '12px',
-              marginBottom: '16px'
-            }}>
-              <button
-                onClick={handlePreviousWeek}
-                style={{
-                  padding: '8px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--card-bg)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--text-primary)'
-                }}
-              >
-                <ChevronLeft size={20} />
-              </button>
+          <div className="week-selector-container">
+            <button onClick={handlePreviousWeek} className="week-nav-btn">
+              <ChevronLeft size={20} />
+            </button>
 
-              <div style={{
-                display: 'flex',
-                gap: '8px',
-                overflowX: 'auto',
-                padding: '4px',
-                maxWidth: '600px'
-              }}>
-                {availableWeeks.map(weekOffset => {
-                  const { weekStart: wStart, weekEnd: wEnd } = getWeekRange(weekOffset);
-                  const isSelected = weekOffset === selectedWeekOffset;
-                  const range = formatWeekRange(wStart, wEnd);
-                  
-                  return (
-                    <button
-                      key={weekOffset}
-                      onClick={() => setSelectedWeekOffset(weekOffset)}
-                      style={{
-                        padding: '8px 16px',
-                        borderRadius: '8px',
-                        border: isSelected ? '2px solid var(--primary-color)' : '1px solid var(--border-color)',
-                        backgroundColor: isSelected ? 'var(--primary-light)' : 'var(--card-bg)',
-                        color: isSelected ? 'var(--primary-color)' : 'var(--text-primary)',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        fontSize: '14px',
-                        fontWeight: isSelected ? 'bold' : 'normal',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      {range}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <button
-                onClick={handleNextWeek}
-                disabled={selectedWeekOffset === 0}
-                style={{
-                  padding: '8px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: selectedWeekOffset === 0 ? 'var(--bg-secondary)' : 'var(--card-bg)',
-                  cursor: selectedWeekOffset === 0 ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: selectedWeekOffset === 0 ? 'var(--text-secondary)' : 'var(--text-primary)',
-                  opacity: selectedWeekOffset === 0 ? 0.5 : 1
-                }}
-              >
-                <ChevronRight size={20} />
-              </button>
-            </div>
-
-            <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '14px' }}>
-              {weekRangeDisplay}
-            </div>
-          </div>
-
-          {/* Filter Section */}
-          <div style={{ marginBottom: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text-primary)' }}>
-                {selectedSpec === 'all' ? '🏆 Top 10 All Projects' : `🏆 Top 10 ${SPECIALIZATIONS.find(s => s.value === selectedSpec)?.label}`}
-              </h2>
-              <select
-                value={selectedSpec}
-                onChange={(e) => setSelectedSpec(e.target.value)}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--card-bg)',
-                  color: 'var(--text-primary)',
-                  fontSize: '14px',
-                  cursor: 'pointer'
-                }}
-              >
-                {SPECIALIZATIONS.map((spec) => (
-                  <option key={spec.value} value={spec.value}>
-                    {spec.icon} {spec.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-              Ranked by number of likes • Showing {filteredPosts.length} posts
-            </p>
-          </div>
-
-          {/* Posts List */}
-          <div className="posts-list">
-            {loading ? (
-              <div className="loading-container">
-                <div className="loading-spinner"></div>
-              </div>
-            ) : filteredPosts.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-state-icon">📭</div>
-                <h3 className="empty-state-title">No posts for this week</h3>
-                <p className="empty-state-text">Try selecting a different week or category!</p>
-              </div>
-            ) : (
-              filteredPosts.map((post, index) => {
-                const postUser = post.user;
-                const postUserName = postUser?.name || "Unknown";
-                const mediaUrl = post.media?.url || post.image || '';
-                const relativeTime = formatRelativeTime(post.createdAt);
+            <div className="week-buttons-wrapper">
+              {availableWeeks.map(weekOffset => {
+                const { weekStart: wStart, weekEnd: wEnd } = getWeekRange(weekOffset);
+                const isSelected = weekOffset === selectedWeekOffset;
+                const range = formatWeekRange(wStart, wEnd);
                 
                 return (
-                  <div key={post._id} className="post-card" onClick={() => handleOpenPostDialog(post)}>
-                    <div className="post-layout">
-                      <div className={`post-rank ${index < 3 ? `rank-${index + 1}` : ''}`}>
-                        #{index + 1}
-                      </div>
-                      
+                  <button
+                    key={weekOffset}
+                    onClick={() => setSelectedWeekOffset(weekOffset)}
+                    className={`week-btn ${isSelected ? 'selected' : ''}`}
+                  >
+                    {range}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button 
+              onClick={handleNextWeek} 
+              disabled={selectedWeekOffset === 0}
+              className="week-nav-btn"
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
+
+          {/* Page Title */}
+          <div className="explore-header">
+            <h1 className="explore-title">
+              All of this week <span className="week-range">{weekRangeDisplay}</span>
+            </h1>
+          </div>
+
+          {/* Specialization Filter */}
+          <div className="filter-tabs">
+            {SPECIALIZATIONS.map((spec) => (
+              <button
+                key={spec.value}
+                onClick={() => setSelectedSpec(spec.value)}
+                className={`filter-tab ${selectedSpec === spec.value ? 'active' : ''}`}
+              >
+                <span style={{ marginRight: '4px' }}>{spec.icon}</span>
+                {spec.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Posts Grid */}
+          {loading ? (
+            <div className="loading-container">
+              <div className="loading-spinner"></div>
+            </div>
+          ) : filteredPosts.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">📭</div>
+              <h3 className="empty-state-title">No posts for this week</h3>
+              <p className="empty-state-text">Try selecting a different week or category!</p>
+            </div>
+          ) : (
+            <div className="posts-grid">
+              {filteredPosts.map((post) => {
+                const mediaUrl = post.media?.url || post.image || '';
+                
+                return (
+                  <div 
+                    key={post._id} 
+                    className="explore-card"
+                    onClick={() => handlePostClick(post)}
+                  >
+                    <div className="explore-card-image">
                       {mediaUrl && (
-                        <div className="post-image-container">
-                          <img src={mediaUrl} alt={post.title} className="post-image" />
-                        </div>
+                        <img src={mediaUrl} alt={post.title} />
                       )}
-                      
-                      <div className="post-content">
-                        <div className="post-header">
-                          <div>
-                            <h3 className="post-title">{post.title}</h3>
-                            {post.specialization && (
-                              <span className="spec-badge">
-                                {getSpecLabel(post.specialization).split(' ').slice(1).join(' ')}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        
-                        <p className="post-description">{post.description}</p>
-                        
-                        <div className="post-author">
-                          <div className="author-avatar">
-                            {postUserName.charAt(0).toUpperCase()}
-                          </div>
-                          <div className="author-info">
-                            <div className="author-name">{postUserName}</div>
-                            <div className="author-role">React Developer at Figma</div>
-                          </div>
-                          <button className="follow-btn">Follow</button>
-                        </div>
-                        
-                        <div className="post-stats">
-                          <div className={`stat-item ${isPostLikedByUser(post, currentUser?._id) ? 'liked' : ''}`}>
-                            <ThumbUpIcon size={18} />
-                            <span>{post.likes.length}</span>
-                          </div>
-                          <div className="stat-item">
-                            <ChatBubbleIcon size={18} />
-                            <span>{post.comments.length}</span>
-                          </div>
-                          <span className="post-time">{relativeTime}</span>
+                      <div className="explore-card-overlay">
+                        <div className="like-badge">
+                          <ThumbUpIcon size={14} />
+                          <span>{post.likes?.length || 0}</span>
                         </div>
                       </div>
                     </div>
+                    <div className="explore-card-content">
+                      <h3 className="explore-card-title">{post.title}</h3>
+                      {post.specialization && (
+                        <span className="spec-badge-small">
+                          {getSpecLabel(post.specialization)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 );
-              })
-            )}
-          </div>
+              })}
+            </div>
+          )}
         </div>
       </main>
 
@@ -752,4 +623,4 @@ const Home = () => {
   );
 };
 
-export default Home;
+export default Explore;
