@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Post = require('../models/Post');
 const User = require('../models/User');
-const { protect } = require('../middleware/auth');
+const { protect } = require('../middleware/auth'); // Assuming protect middleware is in '../middleware/auth'
 
 // Initialize upload and cloudinary variables
 let upload, cloudinary;
@@ -40,6 +40,7 @@ router.post('/', protect, (req, res, next) => {
       return res.status(404).json({ message: 'Authenticated user not found.' });
     }
     
+    // NOTE: Assuming user.canCreatePost() and user.incrementPostCount() methods exist
     if (!user.canCreatePost()) {
         await user.save();
         return res.status(403).json({ message: 'You have reached the weekly post limit (5 posts).' });
@@ -95,6 +96,62 @@ router.post('/', protect, (req, res, next) => {
   }
 });
 
+// ---------------- RECORD POST VIEW (NEW ROUTE) ----------------
+/**
+ * @desc    Records a view for a post, increments seasonal viewsCount.
+ * @route   PUT /api/posts/:id/view (Using PUT to reflect an update/change to the resource)
+ * @access  Private 
+ */
+router.put('/:id/view', protect, async (req, res) => {
+    try {
+        const postId = req.params.id;
+        // User must be authenticated to record a view (set by protect middleware)
+        const userId = req.user._id; 
+
+        const post = await Post.findById(postId);
+
+        if (!post) {
+            return res.status(404).json({ message: 'Post not found' });
+        }
+
+        // 1. Check if the user has already viewed the post
+        const hasViewed = post.views.some(
+            // Compare Mongoose ObjectIds as strings
+            (view) => view.user && view.user.toString() === userId.toString()
+        );
+
+        let updatedPost;
+
+        if (hasViewed) {
+            // Already viewed: Do nothing to the views array/count
+            updatedPost = post;
+        } else {
+            // Not viewed: Add user ID to persistent views array
+            post.views.push({ user: userId, viewedAt: new Date() });
+            
+            // Increment the seasonal viewsCount for the leaderboard
+            if (post.rankingStats) {
+                post.rankingStats.viewsCount = (post.rankingStats.viewsCount || 0) + 1;
+            }
+
+            updatedPost = await post.save();
+        }
+        
+        // 2. Populate and return the post data
+        const populatedPost = await Post.findById(updatedPost._id)
+            .populate('user', 'name profileImage')
+            .populate('likes.user', 'name email')
+            .populate('comments.user', 'name profileImage');
+
+        res.status(200).json(populatedPost);
+
+    } catch (error) {
+        console.error('Error recording post view:', error.message);
+        res.status(500).json({ message: 'Failed to record view: ' + error.message });
+    }
+});
+// ---------------- END RECORD POST VIEW ----------------
+
 // ---------------- GET ALL POSTS (HOME FEED - WITH DECAY SYSTEM) ----------------
 router.get('/', async (req, res) => {
   try {
@@ -116,6 +173,8 @@ router.get('/', async (req, res) => {
       const ageInHours = (now - post.createdAt) / (1000 * 60 * 60) + 0.1; 
       const likes = post.likes.length;
       const comments = post.comments.length;
+      // NOTE: You can also incorporate post.views.length or post.rankingStats.viewsCount here
+      // For now, keeping the original rank formula:
       const rankScore = (likes + (comments * 2)) / ageInHours; 
       
       return { 
@@ -308,6 +367,7 @@ router.put('/:id/like', protect, async (req, res) => {
     const updatedPost = await Post.findById(post._id)
       .populate('user', 'name profileImage')
       .populate('likes.user', 'name email')
+      .populate('comments.user', 'name email')
       .populate('comments.user', 'name profileImage');
 
     console.log('Post populated, returning to client');
@@ -349,6 +409,13 @@ router.post('/:id/comment', protect, async (req, res) => {
 
     post.comments.push(comment);
     await post.save();
+    
+    // IMPORTANT: Also increment the seasonal commentsCount for the leaderboard
+    if (post.rankingStats) {
+        post.rankingStats.commentsCount = (post.rankingStats.commentsCount || 0) + 1;
+    }
+    
+    await post.save(); // Save again if rankingStats was updated
 
     const populatedPost = await Post.findById(post._id)
       .populate('user', 'name profileImage')

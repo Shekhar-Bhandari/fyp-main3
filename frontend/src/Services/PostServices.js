@@ -2,6 +2,7 @@
 import api from "./api";
 
 const PostServices = {
+  // Fetches all posts, optionally filtered by specialization
   getAllPosts: async (specialization = "") => {
     try {
       const user = JSON.parse(localStorage.getItem("todoapp"));
@@ -18,32 +19,30 @@ const PostServices = {
     }
   },
   
-  // === NEW FUNCTION ADDED TO FIX THE ERROR ===
-  incrementViews: async (id) => {
+  // === ADDED VIEW POST METHOD (Corrected and Integrated) ===
+  /**
+   * Records a view for a specific post.
+   * Note: The Home component checks for a token before calling this.
+   */
+  viewPost: async (id) => {
     try {
       const user = JSON.parse(localStorage.getItem("todoapp"));
       const token = user?.token;
 
-      if (!token) {
-        // If the user is not logged in, we might allow a view but skip authentication
-        // or just log an error if the backend requires authentication for this endpoint.
-        // Assuming the backend still tracks the view without authentication for simplicity here,
-        // but if it requires a token, you'd handle the error or return early.
-      }
-
-      // API call to the backend endpoint to increment the view count
-      return await api.put(`/posts/${id}/view`, {}, { 
+      // Use a PUT request to the /posts/:id/view endpoint
+      const response = await api.put(`/posts/${id}/view`, {}, { 
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
+      
+      return response; // Returning the response object (which includes data)
     } catch (error) {
-      console.error('Error in incrementViews:', error);
-      // We often silence this error slightly since view counts are non-critical,
-      // but we throw it for consistency.
+      console.error('Error in viewPost:', error);
       throw error;
     }
   },
-  // ============================================
+  // =========================================================
 
+  // Fetches posts created by the current user
   getMyPosts: async () => {
     try {
       const token = JSON.parse(localStorage.getItem("todoapp"))?.token;
@@ -56,6 +55,7 @@ const PostServices = {
     }
   },
 
+  // Likes or unlikes a post
   likePost: async (id) => {
     try {
       const user = JSON.parse(localStorage.getItem("todoapp"));
@@ -87,6 +87,7 @@ const PostServices = {
     }
   },
 
+  // Creates a new post
   createPost: async (data) => {
     try {
       const token = JSON.parse(localStorage.getItem("todoapp"))?.token;
@@ -104,6 +105,7 @@ const PostServices = {
     }
   },
 
+  // Updates an existing post
   updatePost: async (id, data) => {
     try {
       const token = JSON.parse(localStorage.getItem("todoapp"))?.token;
@@ -121,6 +123,7 @@ const PostServices = {
     }
   },
 
+  // Deletes a post
   deletePost: async (id) => {
     try {
       const token = JSON.parse(localStorage.getItem("todoapp"))?.token;
@@ -133,6 +136,7 @@ const PostServices = {
     }
   },
 
+  // Adds a comment to a post
   addComment: async (postId, text) => {
     try {
       const token = JSON.parse(localStorage.getItem("todoapp"))?.token;

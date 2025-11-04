@@ -13,6 +13,7 @@ import {
   Plus as PlusIcon,
   ChevronLeft,
   ChevronRight,
+  Eye as EyeIcon,
 } from "lucide-react";
 import "../styles/navbar.css";
 import "../styles/home.css";
@@ -100,11 +101,11 @@ const renderClickableText = (text) => {
   return parts;
 };
 
-// Get week start and end dates
 const getWeekRange = (weekOffset = 0) => {
   const now = new Date();
+  // Adjust to make Monday the start of the week (1=Mon, 0=Sun)
   const currentDay = now.getDay();
-  const diff = currentDay === 0 ? 6 : currentDay - 1; // Monday as start of week
+  const diff = currentDay === 0 ? 6 : currentDay - 1; // 0=Sun becomes 6, 1=Mon becomes 0
   
   const weekStart = new Date(now);
   weekStart.setDate(now.getDate() - diff - (weekOffset * 7));
@@ -117,20 +118,25 @@ const getWeekRange = (weekOffset = 0) => {
   return { weekStart, weekEnd };
 };
 
-// Format week range display
 const formatWeekRange = (weekStart, weekEnd) => {
   const startMonth = weekStart.toLocaleDateString('en-US', { month: 'short' });
   const endMonth = weekEnd.toLocaleDateString('en-US', { month: 'short' });
   const startDay = weekStart.getDate();
   const endDay = weekEnd.getDate();
+  const startYear = weekStart.getFullYear();
+  const endYear = weekEnd.getFullYear();
+
+  let yearDisplay = '';
+  if (startYear !== endYear || startYear !== new Date().getFullYear()) {
+    yearDisplay = ` ${startYear}`;
+  }
   
   if (startMonth === endMonth) {
-    return `${startMonth} ${startDay}-${endDay}`;
+    return `${startMonth} ${startDay}-${endDay}${yearDisplay}`;
   }
-  return `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
+  return `${startMonth} ${startDay} - ${endMonth} ${endDay}${yearDisplay}`;
 };
 
-// Get week number
 const getWeekNumber = (date) => {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   const dayNum = d.getUTCDay() || 7;
@@ -139,36 +145,88 @@ const getWeekNumber = (date) => {
   return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
 };
 
-// Get the most recent like timestamp from a post
-const getMostRecentLikeTime = (post) => {
-  if (!post.likes || post.likes.length === 0) return 0;
+// --- Ranking Algorithm Helpers and Constants ---
+
+const W_L = 5.0; // Weight for Likes
+const W_C = 3.0; // Weight for Unique Commenters
+const W_V = 1.0; // Weight for Views
+const GRAVITY = 0.1; // ADJUSTED: Very low gravity for Engagement-First ranking
+
+const getUniqueCommenters = (post) => {
+  if (!post.comments || post.comments.length === 0) return 0;
   
-  const timestamps = post.likes
-    .map(like => like.createdAt ? new Date(like.createdAt).getTime() : 0)
-    .filter(time => time > 0);
-  
-  if (timestamps.length > 0) {
-    return Math.max(...timestamps);
-  }
-  
-  return post.createdAt ? new Date(post.createdAt).getTime() : 0;
+  const uniqueUserIds = new Set();
+  post.comments.forEach(comment => {
+    // Assuming comment.user is either an object { _id: '...' } or a string '...'
+    const userId = typeof comment.user === 'object' ? comment.user._id : comment.user;
+    if (userId) {
+      uniqueUserIds.add(String(userId));
+    }
+  });
+  return uniqueUserIds.size;
 };
 
-// Rank posts by number of likes, then by most recent like
-const rankPosts = (posts) => {
-  return posts.sort((a, b) => {
-    const aLikes = a.likes?.length || 0;
-    const bLikes = b.likes?.length || 0;
-    
-    if (aLikes !== bLikes) {
-      return bLikes - aLikes;
-    }
-    
-    const aRecentLike = getMostRecentLikeTime(a);
-    const bRecentLike = getMostRecentLikeTime(b);
-    return bRecentLike - aRecentLike;
-  });
+const getMostRecentActionTime = (post) => {
+  let latestTime = post.createdAt ? new Date(post.createdAt).getTime() : 0;
+  
+  // Check likes
+  if (post.likes && post.likes.length > 0) {
+    post.likes.forEach(like => {
+      if (like.createdAt) {
+        latestTime = Math.max(latestTime, new Date(like.createdAt).getTime());
+      }
+    });
+  }
+  
+  // Check comments
+  if (post.comments && post.comments.length > 0) {
+    post.comments.forEach(comment => {
+      if (comment.createdAt) {
+        latestTime = Math.max(latestTime, new Date(comment.createdAt).getTime());
+      }
+    });
+  }
+  
+  return latestTime;
 };
+
+// FULL WEEKLY COMPOSITE RANKING ALGORITHM
+const rankPosts = (posts) => {
+  const now = Date.now();
+  
+  // Calculate scores for all posts first
+  const scoredPosts = posts.map(post => {
+    // --- Calculate Score ---
+    const views = post.views?.length || 0;
+    const likes = post.likes?.length || 0;
+    const uniqueCommenters = getUniqueCommenters(post);
+    
+    // Engagement Score (Numerator): Logarithmic Scaling + Weights
+    const engagementScore = 
+      (W_L * Math.log10(likes + 1)) + 
+      (W_C * Math.log10(uniqueCommenters + 1)) + 
+      (W_V * Math.log10(views + 1));
+      
+    // Time Decay Factor (Denominator)
+    const recentTime = getMostRecentActionTime(post);
+    // Hours since last action (ensures non-negative time)
+    const hoursSinceAction = Math.max(0, (now - recentTime) / (1000 * 60 * 60)); 
+    
+    // If GRAVITY is 0.1, the decay is minimal, keeping the score close to the raw engagement
+    const timeDecayFactor = Math.pow((hoursSinceAction + 2), GRAVITY);
+    
+    // Final Weekly Score
+    const score = engagementScore / timeDecayFactor;
+
+    return { post, score, engagementScore };
+  });
+
+
+  // Sort descending (highest score first)
+  return scoredPosts.sort((a, b) => b.score - a.score).map(item => item.post);
+};
+
+// --- End of Ranking Algorithm ---
 
 const Home = () => {
   const [posts, setPosts] = useState([]);
@@ -211,30 +269,43 @@ const Home = () => {
     return () => window.removeEventListener("storage", updateUser);
   }, []);
 
-  // Calculate available weeks from posts
   useEffect(() => {
     if (posts.length > 0) {
       const weeks = new Set();
       const now = new Date();
       
+      // Determine all unique week offsets present in the data
       posts.forEach(post => {
         const postDate = new Date(post.createdAt);
-        const daysDiff = Math.floor((now - postDate) / (1000 * 60 * 60 * 24));
-        const weekOffset = Math.floor(daysDiff / 7);
+        // Calculate diff based on current week structure (Mon start)
+        const currentDay = now.getDay();
+        const diff = currentDay === 0 ? 6 : currentDay - 1; 
+        
+        const currentWeekStart = new Date(now);
+        currentWeekStart.setDate(now.getDate() - diff);
+        currentWeekStart.setHours(0, 0, 0, 0);
+
+        const daysDiff = Math.floor((currentWeekStart - postDate) / (1000 * 60 * 60 * 24));
+        // Use integer division to get the week offset relative to the current week
+        const weekOffset = Math.ceil(daysDiff / 7);
         weeks.add(weekOffset);
       });
       
+      // Include the current week (offset 0) even if no posts are from this week yet
+      weeks.add(0); 
+
+      // Sort weeks from newest (0) to oldest
       const sortedWeeks = Array.from(weeks).sort((a, b) => a - b);
       setAvailableWeeks(sortedWeeks);
     }
   }, [posts]);
 
-  // Filter posts by selected week and specialization
   useEffect(() => {
     const { weekStart, weekEnd } = getWeekRange(selectedWeekOffset);
     
     let filtered = posts.filter(post => {
       const postDate = new Date(post.createdAt);
+      // Filter by the week range selected
       return postDate >= weekStart && postDate <= weekEnd;
     });
     
@@ -242,6 +313,7 @@ const Home = () => {
       filtered = filtered.filter(post => post.specialization === selectedSpec);
     }
     
+    // Apply the new composite ranking algorithm
     const ranked = rankPosts([...filtered]);
     const top10 = ranked.slice(0, 10);
     
@@ -251,6 +323,7 @@ const Home = () => {
   const fetchPosts = async () => {
     try {
       setLoading(true);
+      // Assuming getAllPosts now fetches posts with aggregated data (likes, comments, views)
       const res = await PostServices.getAllPosts(); 
       setPosts(res.data);
     } catch (error) {
@@ -277,6 +350,18 @@ const Home = () => {
     );
     if (selectedPost && selectedPost._id === updatedPost._id) {
       setSelectedPost(updatedPost);
+    }
+  };
+
+  const handleView = async (postId) => {
+    if (!currentUser?.token) return;
+
+    try {
+      // Assuming PostServices.viewPost records the view and returns the updated post
+      const res = await PostServices.viewPost(postId);
+      updatePostInState(res.data);
+    } catch (error) {
+      console.error("Error recording view:", error);
     }
   };
 
@@ -318,6 +403,7 @@ const Home = () => {
       return true;
 
     } catch (error) {
+      // Rate limiting or anti-spam errors from the backend would show here
       toast.error(error.response?.data?.message || "Failed to add comment.");
       return false;
     }
@@ -349,6 +435,10 @@ const Home = () => {
   const handleOpenPostDialog = (post) => {
     setSelectedPost(post);
     setPostDialogOpen(true);
+    // Record view when dialog opens
+    if (currentUser?.token) {
+      handleView(post._id);
+    }
   };
 
   const handleClosePostDialog = () => {
@@ -357,10 +447,12 @@ const Home = () => {
   };
 
   const handlePreviousWeek = () => {
+    // Show older weeks (increase offset)
     setSelectedWeekOffset(prev => prev + 1);
   };
 
   const handleNextWeek = () => {
+    // Show newer weeks (decrease offset)
     if (selectedWeekOffset > 0) {
       setSelectedWeekOffset(prev => prev - 1);
     }
@@ -521,6 +613,7 @@ const Home = () => {
 
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 {post.comments.length > 0 ? (
+                  // Display comments newest first
                   post.comments.slice().reverse().map((comment, i) => ( 
                     <div key={comment._id || i} style={{ marginBottom: '12px', padding: '12px', backgroundColor: 'var(--nav-active)', borderRadius: '8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
@@ -555,10 +648,8 @@ const Home = () => {
 
   return (
     <div className="app-container">
-      {/* Vertical Navbar */}
       <VerticalNavbar currentUser={currentUser} onLogout={handleLogout} />
 
-      {/* Main Content */}
       <main className="main-content">
         <header className="top-header">
           <div className="header-left">
@@ -579,7 +670,6 @@ const Home = () => {
         </header>
 
         <div className="content-container">
-          {/* Week Selector */}
           <div style={{ 
             marginBottom: '24px', 
             padding: '16px 0',
@@ -616,6 +706,7 @@ const Home = () => {
                 padding: '4px',
                 maxWidth: '600px'
               }}>
+                {/* Render buttons for available weeks */}
                 {availableWeeks.map(weekOffset => {
                   const { weekStart: wStart, weekEnd: wEnd } = getWeekRange(weekOffset);
                   const isSelected = weekOffset === selectedWeekOffset;
@@ -669,7 +760,6 @@ const Home = () => {
             </div>
           </div>
 
-          {/* Filter Section */}
           <div style={{ marginBottom: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text-primary)' }}>
@@ -696,11 +786,10 @@ const Home = () => {
               </select>
             </div>
             <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-              Ranked by number of likes • Showing {filteredPosts.length} posts
+              Ranked by **Engagement Score** with minimal time decay only for tie-breaking • Showing {filteredPosts.length} posts
             </p>
           </div>
 
-          {/* Posts List */}
           <div className="posts-list">
             {loading ? (
               <div className="loading-container">
@@ -729,6 +818,7 @@ const Home = () => {
                       
                       {mediaUrl && (
                         <div className="post-image-container">
+                          {/* Display image/video thumbnail */}
                           <img src={mediaUrl} alt={post.title} className="post-image" />
                         </div>
                       )}
@@ -802,6 +892,17 @@ const Home = () => {
                           }}>
                             <ChatBubbleIcon size={16} />
                             <span>{post.comments.length}</span>
+                          </div>
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '6px 12px',
+                            color: 'var(--text-secondary)',
+                            fontSize: '14px'
+                          }}>
+                            <EyeIcon size={16} />
+                            <span>{post.views?.length || 0}</span>
                           </div>
                           <span className="post-time">{relativeTime}</span>
                         </div>

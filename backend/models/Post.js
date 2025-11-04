@@ -17,7 +17,6 @@ const PostSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  // Updated media field to store both images and videos
   media: {
     url: {
       type: String,
@@ -33,7 +32,6 @@ const PostSchema = new mongoose.Schema({
       default: ''
     }
   },
-  // Keep for backward compatibility
   image: {
     type: String,
     default: ''
@@ -70,9 +68,24 @@ const PostSchema = new mongoose.Schema({
     }
   }],
   
-  // ⭐️ START: NEW FIELDS FOR SEASONAL LEADERBOARD ⭐️
+  // ⭐️ START: ADDED/UPDATED FIELDS ⭐️
   
-  // 1. Seasonal Ranking Stats: Scores used ONLY for the current leaderboard calculation.
+  // 1. Persistent Views Array: Stores user IDs to track who has viewed the post 
+  // and prevent duplicate counts from the same user.
+  views: [
+    {
+      user: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'User' 
+      },
+      viewedAt: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ],
+  
+  // 2. Seasonal Ranking Stats: Updated to include viewsCount for the leaderboard algorithm.
   rankingStats: {
     likesCount: { 
       type: Number, 
@@ -82,18 +95,23 @@ const PostSchema = new mongoose.Schema({
       type: Number, 
       default: 0 
     },
+    // NEW: Include view count for the seasonal ranking score
+    viewsCount: { 
+      type: Number, 
+      default: 0 
+    },
   },
   
-  // 2. Reset Timestamp: Tracks when the rankingStats were last zeroed out.
+  // 3. Reset Timestamp: Tracks when the rankingStats were last zeroed out.
   rankingResetAt: {
     type: Date,
-    default: Date.now, // Defaults to creation time initially
+    default: Date.now,
   }
   
-  // ⭐️ END: NEW FIELDS FOR SEASONAL LEADERBOARD ⭐️
+  // ⭐️ END: ADDED/UPDATED FIELDS ⭐️
   
 }, {
-  timestamps: true // Keeps createdAt and updatedAt
+  timestamps: true
 });
 
 module.exports = mongoose.model('Post', PostSchema);
