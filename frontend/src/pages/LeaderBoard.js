@@ -20,7 +20,7 @@ const Leaderboard = () => {
   const [topUsers, setTopUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [timeRemaining, setTimeRemaining] = useState({ days: 2, hours: 14, minutes: 56 });
+  const [timeRemaining, setTimeRemaining] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [darkMode, setDarkMode] = useState(false);
 
   const navigate = useNavigate();
@@ -45,27 +45,6 @@ const Leaderboard = () => {
     setCurrentUser(user);
   };
 
-  useEffect(() => {
-    updateUser();
-    fetchAllUsersRanking();
-    
-    const intervalId = setInterval(() => {
-      fetchAllUsersRanking();
-    }, 60000);
-
-    // Update timer every minute
-    const timerInterval = setInterval(() => {
-      updateTimer();
-    }, 60000);
-
-    window.addEventListener("storage", updateUser);
-    return () => {
-      window.removeEventListener("storage", updateUser);
-      clearInterval(intervalId);
-      clearInterval(timerInterval);
-    }
-  }, []);
-
   const updateTimer = () => {
     const now = new Date();
     const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -74,9 +53,32 @@ const Leaderboard = () => {
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
     
-    setTimeRemaining({ days, hours, minutes });
+    setTimeRemaining({ days, hours, minutes, seconds });
   };
+
+  useEffect(() => {
+    updateUser();
+    fetchAllUsersRanking();
+    updateTimer(); // Initial timer update
+    
+    const intervalId = setInterval(() => {
+      fetchAllUsersRanking();
+    }, 60000);
+
+    // Update timer every second for real-time countdown
+    const timerInterval = setInterval(() => {
+      updateTimer();
+    }, 1000);
+
+    window.addEventListener("storage", updateUser);
+    return () => {
+      window.removeEventListener("storage", updateUser);
+      clearInterval(intervalId);
+      clearInterval(timerInterval);
+    }
+  }, []);
 
   const fetchAllUsersRanking = async () => {
     try {
@@ -353,6 +355,10 @@ const Leaderboard = () => {
             <div className="timer-value">
               <span className="timer-number">{String(timeRemaining.minutes).padStart(2, '0')}</span>
               <span className="timer-label">Mins</span>
+            </div>
+            <div className="timer-value">
+              <span className="timer-number">{String(timeRemaining.seconds).padStart(2, '0')}</span>
+              <span className="timer-label">Secs</span>
             </div>
           </div>
         </div>

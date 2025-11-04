@@ -20,6 +20,7 @@ import {
   Moon as MoonIcon,
   Bell as BellIcon,
   Plus as PlusIcon,
+  LogOut as LogOutIcon,
 } from "lucide-react";
 import "../styles/navbar.css";
 import "../styles/profile.css";
@@ -358,10 +359,12 @@ const Profile = () => {
 
   // Logout Handler
   const handleLogout = () => {
-    localStorage.removeItem("todoapp");
-    setCurrentUser(null);
-    toast.success("Logged out successfully");
-    navigate("/auth");
+    if (window.confirm("Are you sure you want to logout?")) {
+      localStorage.removeItem("todoapp");
+      setCurrentUser(null);
+      toast.success("Logged out successfully");
+      navigate("/auth");
+    }
   };
 
   // Profile Edit Handlers
@@ -474,6 +477,29 @@ const Profile = () => {
               <PlusIcon size={18} />
               New post
             </button>
+            <button 
+              onClick={handleLogout} 
+              className="logout-btn"
+              style={{
+                backgroundColor: '#ef4444',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '10px 20px',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseOver={(e) => e.target.style.backgroundColor = '#dc2626'}
+              onMouseOut={(e) => e.target.style.backgroundColor = '#ef4444'}
+            >
+              <LogOutIcon size={18} />
+              Logout
+            </button>
           </div>
         </header>
 
@@ -540,10 +566,34 @@ const Profile = () => {
                     <h1 className="profile-name">{currentUser?.name}</h1>
                     {currentUser?.bio && <p className="profile-bio">{currentUser.bio}</p>}
                     <p className="profile-email">{currentUser?.email}</p>
-                    <button className="edit-profile-btn" onClick={handleEditProfile}>
-                      <EditIcon size={16} />
-                      Edit Profile
-                    </button>
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                      <button className="edit-profile-btn" onClick={handleEditProfile}>
+                        <EditIcon size={16} />
+                        Edit Profile
+                      </button>
+                      <button 
+                        onClick={handleLogout}
+                        style={{
+                          backgroundColor: '#ef4444',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '10px 20px',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseOver={(e) => e.target.style.backgroundColor = '#dc2626'}
+                        onMouseOut={(e) => e.target.style.backgroundColor = '#ef4444'}
+                      >
+                        <LogOutIcon size={16} />
+                        Logout
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
