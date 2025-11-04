@@ -445,19 +445,58 @@ const Home = () => {
             <div style={{ flex: '1', padding: '24px', borderLeft: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', maxHeight: '70vh' }}>
               <h3 style={{ marginBottom: '16px' }}>Interactions</h3>
               
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
                 <button
                   onClick={() => onLike(post._id)}
-                  className={`stat-btn ${likedByUser ? 'liked' : ''}`}
                   disabled={!user?.token}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 16px',
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: 'var(--text-secondary)',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: user?.token ? 'pointer' : 'not-allowed',
+                    transition: 'background-color 0.2s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--nav-active)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
-                  <ThumbUpIcon size={16} />
-                  {post.likes.length}
+                  <ThumbUpIcon 
+                    size={18} 
+                    fill={likedByUser ? '#10b981' : 'none'}
+                    stroke={likedByUser ? '#10b981' : 'currentColor'}
+                    style={{ transition: 'all 0.2s' }}
+                  />
+                  <span style={{ color: likedByUser ? '#10b981' : 'var(--text-secondary)' }}>
+                    Like {post.likes.length > 0 && `(${post.likes.length})`}
+                  </span>
                 </button>
-                <div className="stat-item">
-                  <ChatBubbleIcon size={16} />
-                  {post.comments.length}
-                </div>
+                <button
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 16px',
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: 'var(--text-secondary)',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--nav-active)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <ChatBubbleIcon size={18} />
+                  <span>Comment {post.comments.length > 0 && `(${post.comments.length})`}</span>
+                </button>
               </div>
 
               {user?.token && (
@@ -679,6 +718,7 @@ const Home = () => {
                 const postUserName = postUser?.name || "Unknown";
                 const mediaUrl = post.media?.url || post.image || '';
                 const relativeTime = formatRelativeTime(post.createdAt);
+                const isLiked = isPostLikedByUser(post, currentUser?._id);
                 
                 return (
                   <div key={post._id} className="post-card" onClick={() => handleOpenPostDialog(post)}>
@@ -719,12 +759,48 @@ const Home = () => {
                         </div>
                         
                         <div className="post-stats">
-                          <div className={`stat-item ${isPostLikedByUser(post, currentUser?._id) ? 'liked' : ''}`}>
-                            <ThumbUpIcon size={18} />
-                            <span>{post.likes.length}</span>
-                          </div>
-                          <div className="stat-item">
-                            <ChatBubbleIcon size={18} />
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleLike(post._id);
+                            }}
+                            disabled={!currentUser?.token}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '6px 12px',
+                              backgroundColor: 'transparent',
+                              border: 'none',
+                              borderRadius: '6px',
+                              color: 'var(--text-secondary)',
+                              fontSize: '14px',
+                              fontWeight: '500',
+                              cursor: currentUser?.token ? 'pointer' : 'not-allowed',
+                              transition: 'background-color 0.2s',
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--nav-active)'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                          >
+                            <ThumbUpIcon 
+                              size={16} 
+                              fill={isLiked ? '#10b981' : 'none'}
+                              stroke={isLiked ? '#10b981' : 'currentColor'}
+                              style={{ transition: 'all 0.2s' }}
+                            />
+                            <span style={{ color: isLiked ? '#10b981' : 'var(--text-secondary)' }}>
+                              {post.likes.length}
+                            </span>
+                          </button>
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '6px 12px',
+                            color: 'var(--text-secondary)',
+                            fontSize: '14px'
+                          }}>
+                            <ChatBubbleIcon size={16} />
                             <span>{post.comments.length}</span>
                           </div>
                           <span className="post-time">{relativeTime}</span>

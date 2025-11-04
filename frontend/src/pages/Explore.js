@@ -410,19 +410,58 @@ const Explore = () => {
             <div style={{ flex: '1', padding: '24px', borderLeft: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', maxHeight: '70vh' }}>
               <h3 style={{ marginBottom: '16px' }}>Interactions</h3>
               
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
                 <button
                   onClick={() => onLike(post._id)}
-                  className={`stat-btn ${likedByUser ? 'liked' : ''}`}
                   disabled={!user?.token}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 16px',
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: 'var(--text-secondary)',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: user?.token ? 'pointer' : 'not-allowed',
+                    transition: 'background-color 0.2s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--nav-active)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
-                  <ThumbUpIcon size={16} />
-                  {post.likes.length}
+                  <ThumbUpIcon 
+                    size={18} 
+                    fill={likedByUser ? '#10b981' : 'none'}
+                    stroke={likedByUser ? '#10b981' : 'currentColor'}
+                    style={{ transition: 'all 0.2s' }}
+                  />
+                  <span style={{ color: likedByUser ? '#10b981' : 'var(--text-secondary)' }}>
+                    Like {post.likes.length > 0 && `(${post.likes.length})`}
+                  </span>
                 </button>
-                <div className="stat-item">
-                  <ChatBubbleIcon size={16} />
-                  {post.comments.length}
-                </div>
+                <button
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 16px',
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: 'var(--text-secondary)',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--nav-active)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <ChatBubbleIcon size={18} />
+                  <span>Comment {post.comments.length > 0 && `(${post.comments.length})`}</span>
+                </button>
               </div>
 
               {user?.token && (
@@ -576,6 +615,7 @@ const Explore = () => {
             <div className="posts-grid">
               {filteredPosts.map((post) => {
                 const mediaUrl = post.media?.url || post.image || '';
+                const isLiked = isPostLikedByUser(post, currentUser?._id);
                 
                 return (
                   <div 
@@ -588,8 +628,14 @@ const Explore = () => {
                         <img src={mediaUrl} alt={post.title} />
                       )}
                       <div className="explore-card-overlay">
-                        <div className="like-badge">
-                          <ThumbUpIcon size={14} />
+                        <div className="like-badge" style={{
+                          backgroundColor: isLiked ? '#10b981' : 'rgba(0, 0, 0, 0.6)',
+                          color: 'white'
+                        }}>
+                          <ThumbUpIcon 
+                            size={14} 
+                            fill={isLiked ? 'white' : 'none'}
+                          />
                           <span>{post.likes?.length || 0}</span>
                         </div>
                       </div>
