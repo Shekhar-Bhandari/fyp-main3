@@ -151,28 +151,31 @@ router.put('/:id/view', protect, async (req, res) => {
 // ---------------- END RECORD POST VIEW ----------------
 
 // ---------------- GET ALL POSTS (HOME FEED) ----------------
-// ... (Your existing GET ALL POSTS logic) ...
 router.get('/', async (req, res) => {
   try {
     const { specialization } = req.query; 
     
-    let query = { isArchived: false }; 
+    // FIX: Removed the isArchived filter entirely. 
+    // All posts will now be fetched by default, regardless of their isArchived status.
+    let query = {};
     
     if (specialization) {
       query.specialization = specialization;
     }
 
+    // NOTE: This .find(query) will now fetch ALL posts.
     const posts = await Post.find(query) 
       .populate('user', 'name profileImage') 
       .populate('likes.user', 'name email')
       .populate('comments.user', 'name profileImage'); 
     
+    // The ranking logic remains the same.
     const postsWithScore = posts.map(post => {
       const now = new Date();
+      // Using post.createdAt is critical for the ranking score
       const ageInHours = (now - post.createdAt) / (1000 * 60 * 60) + 0.1; 
       const likes = post.likes.length;
       const comments = post.comments.length;
-      // For now, keeping the original rank formula:
       const rankScore = (likes + (comments * 2)) / ageInHours; 
       
       return { 

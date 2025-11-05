@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye as EyeIcon,
+  FileText as FileTextIcon,
 } from "lucide-react";
 import "../styles/navbar.css";
 import "../styles/home.css";
@@ -103,9 +104,8 @@ const renderClickableText = (text) => {
 
 const getWeekRange = (weekOffset = 0) => {
   const now = new Date();
-  // Adjust to make Monday the start of the week (1=Mon, 0=Sun)
   const currentDay = now.getDay();
-  const diff = currentDay === 0 ? 6 : currentDay - 1; // 0=Sun becomes 6, 1=Mon becomes 0
+  const diff = currentDay === 0 ? 6 : currentDay - 1;
   
   const weekStart = new Date(now);
   weekStart.setDate(now.getDate() - diff - (weekOffset * 7));
@@ -145,22 +145,18 @@ const getWeekNumber = (date) => {
   return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
 };
 
-// --- Ranking Algorithm Helpers and Constants ---
-
-const W_L = 5.0; // Weight for Likes
-const W_C = 3.0; // Weight for Unique Commenters
-const W_V = 1.0; // Weight for Views
-const GRAVITY = 0.1; // ADJUSTED: Very low gravity for Engagement-First ranking
+// --- Ranking Algorithm ---
+const W_L = 5.0;
+const W_C = 3.0;
+const W_V = 1.0;
+const GRAVITY = 0.1;
 
 const getUniqueCommenters = (post) => {
   if (!post.comments || post.comments.length === 0) return 0;
   
   const uniqueUserIds = new Set();
   post.comments.forEach(comment => {
-    // 🐛 FIX: Safely access user._id, checking if comment.user is not null/undefined
     const userId = comment.user?._id;
-    
-    // Fallback if comment.user is not populated (it's just a string ID)
     const finalUserId = userId || (typeof comment.user === 'string' ? comment.user : null);
 
     if (finalUserId) {
@@ -173,17 +169,14 @@ const getUniqueCommenters = (post) => {
 const getMostRecentActionTime = (post) => {
   let latestTime = post.createdAt ? new Date(post.createdAt).getTime() : 0;
   
-  // Check likes
   if (post.likes && post.likes.length > 0) {
     post.likes.forEach(like => {
-      // 🐛 NOTE: Likes array doesn't seem to have createdAt in the examples, but checking just in case
       if (like.createdAt) {
         latestTime = Math.max(latestTime, new Date(like.createdAt).getTime());
       }
     });
   }
   
-  // Check comments
   if (post.comments && post.comments.length > 0) {
     post.comments.forEach(comment => {
       if (comment.createdAt) {
@@ -195,48 +188,30 @@ const getMostRecentActionTime = (post) => {
   return latestTime;
 };
 
-// FULL WEEKLY COMPOSITE RANKING ALGORITHM
 const rankPosts = (posts) => {
   const now = Date.now();
   
-  // Calculate scores for all posts first
   const scoredPosts = posts.map(post => {
-    // --- Calculate Score ---
     const views = post.views?.length || 0;
     const likes = post.likes?.length || 0;
-    
-    // Clean the comments array before passing it to getUniqueCommenters
-    // Filtering out any null values that may exist in the array due to database inconsistencies
     const cleanComments = post.comments ? post.comments.filter(c => c !== null) : [];
-
     const uniqueCommenters = getUniqueCommenters({ ...post, comments: cleanComments });
     
-    // Engagement Score (Numerator): Logarithmic Scaling + Weights
     const engagementScore = 
       (W_L * Math.log10(likes + 1)) + 
       (W_C * Math.log10(uniqueCommenters + 1)) + 
       (W_V * Math.log10(views + 1));
       
-    // Time Decay Factor (Denominator)
     const recentTime = getMostRecentActionTime(post);
-    // Hours since last action (ensures non-negative time)
     const hoursSinceAction = Math.max(0, (now - recentTime) / (1000 * 60 * 60)); 
-    
-    // If GRAVITY is 0.1, the decay is minimal, keeping the score close to the raw engagement
     const timeDecayFactor = Math.pow((hoursSinceAction + 2), GRAVITY);
-    
-    // Final Weekly Score
     const score = engagementScore / timeDecayFactor;
 
     return { post, score, engagementScore };
   });
 
-
-  // Sort descending (highest score first)
   return scoredPosts.sort((a, b) => b.score - a.score).map(item => item.post);
 };
-
-// --- End of Ranking Algorithm ---
 
 const Home = () => {
   const [posts, setPosts] = useState([]);
@@ -284,10 +259,8 @@ const Home = () => {
       const weeks = new Set();
       const now = new Date();
       
-      // Determine all unique week offsets present in the data
       posts.forEach(post => {
         const postDate = new Date(post.createdAt);
-        // Calculate diff based on current week structure (Mon start)
         const currentDay = now.getDay();
         const diff = currentDay === 0 ? 6 : currentDay - 1; 
         
@@ -296,15 +269,11 @@ const Home = () => {
         currentWeekStart.setHours(0, 0, 0, 0);
 
         const daysDiff = Math.floor((currentWeekStart - postDate) / (1000 * 60 * 60 * 24));
-        // Use integer division to get the week offset relative to the current week
         const weekOffset = Math.ceil(daysDiff / 7);
         weeks.add(weekOffset);
       });
       
-      // Include the current week (offset 0) even if no posts are from this week yet
       weeks.add(0); 
-
-      // Sort weeks from newest (0) to oldest
       const sortedWeeks = Array.from(weeks).sort((a, b) => a - b);
       setAvailableWeeks(sortedWeeks);
     }
@@ -315,7 +284,6 @@ const Home = () => {
     
     let filtered = posts.filter(post => {
       const postDate = new Date(post.createdAt);
-      // Filter by the week range selected
       return postDate >= weekStart && postDate <= weekEnd;
     });
     
@@ -323,7 +291,6 @@ const Home = () => {
       filtered = filtered.filter(post => post.specialization === selectedSpec);
     }
     
-    // Apply the new composite ranking algorithm
     const ranked = rankPosts([...filtered]);
     const top10 = ranked.slice(0, 10);
     
@@ -333,7 +300,6 @@ const Home = () => {
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      // Assuming getAllPosts now fetches posts with aggregated data (likes, comments, views)
       const res = await PostServices.getAllPosts(); 
       setPosts(res.data);
     } catch (error) {
@@ -367,7 +333,6 @@ const Home = () => {
     if (!currentUser?.token) return;
 
     try {
-      // Assuming PostServices.viewPost records the view and returns the updated post
       const res = await PostServices.viewPost(postId);
       updatePostInState(res.data);
     } catch (error) {
@@ -413,7 +378,6 @@ const Home = () => {
       return true;
 
     } catch (error) {
-      // Rate limiting or anti-spam errors from the backend would show here
       toast.error(error.response?.data?.message || "Failed to add comment.");
       return false;
     }
@@ -424,7 +388,6 @@ const Home = () => {
     
     return post.likes.some((like) => {
       if (!like || !like.user) return false;
-      // Handle cases where like.user is populated object or just an ID string
       const likeUserId = typeof like.user === 'object' ? like.user._id : like.user;
       return String(likeUserId) === String(userId);
     });
@@ -446,7 +409,6 @@ const Home = () => {
   const handleOpenPostDialog = (post) => {
     setSelectedPost(post);
     setPostDialogOpen(true);
-    // Record view when dialog opens
     if (currentUser?.token) {
       handleView(post._id);
     }
@@ -458,12 +420,10 @@ const Home = () => {
   };
 
   const handlePreviousWeek = () => {
-    // Show older weeks (increase offset)
     setSelectedWeekOffset(prev => prev + 1);
   };
 
   const handleNextWeek = () => {
-    // Show newer weeks (decrease offset)
     if (selectedWeekOffset > 0) {
       setSelectedWeekOffset(prev => prev - 1);
     }
@@ -488,13 +448,11 @@ const Home = () => {
     if (!post) return null;
 
     const likedByUser = isPostLikedByUser(post, user?._id);
-    // 🐛 FIX: Check if post.user is an object before accessing properties
     const postUser = post.user && typeof post.user === 'object' ? post.user : {};
     const postUserId = postUser?._id;
     const postUserName = postUser?.name || "Unknown";
     const relativeTime = formatRelativeTime(post.createdAt);
     
-    // Assuming post.media.image is the correct field based on previous interaction, but checking for media.url too
     const mediaUrl = post.media?.image || post.media?.url || '';
     const mediaType = post.media?.type || (post.media?.image || post.media?.url ? 'image' : 'none');
     const hasMedia = mediaUrl && mediaType !== 'none';
@@ -524,7 +482,7 @@ const Home = () => {
                 </div>
               </div>
               
-              {hasMedia && (
+              {hasMedia ? (
                 <div style={{ marginBottom: '16px' }}>
                   {mediaType === 'video' ? (
                     <video 
@@ -539,6 +497,20 @@ const Home = () => {
                       style={{ width: '100%', maxHeight: '400px', objectFit: 'contain', borderRadius: '8px' }}
                     />
                   )}
+                </div>
+              ) : (
+                <div style={{ 
+                  marginBottom: '16px',
+                  width: '100%',
+                  height: '300px',
+                  backgroundColor: '#3b82f6',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white'
+                }}>
+                  <FileTextIcon size={64} strokeWidth={1.5} />
                 </div>
               )}
               
@@ -626,9 +598,7 @@ const Home = () => {
 
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 {post.comments.length > 0 ? (
-                  // Display comments newest first
                   post.comments.slice().reverse().map((comment, i) => {
-                    // 🐛 FIX: Added null checks for comment.user
                     const commentUserName = comment.user?.name || (comment.user ? 'User ID: ' + comment.user : 'Unknown/Deleted User');
                     const commentUserInitial = comment.user?.name ? comment.user.name[0] : 'A';
 
@@ -725,7 +695,6 @@ const Home = () => {
                 padding: '4px',
                 maxWidth: '600px'
               }}>
-                {/* Render buttons for available weeks */}
                 {availableWeeks.map(weekOffset => {
                   const { weekStart: wStart, weekEnd: wEnd } = getWeekRange(weekOffset);
                   const isSelected = weekOffset === selectedWeekOffset;
@@ -805,7 +774,7 @@ const Home = () => {
               </select>
             </div>
             <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-              Ranked by **Engagement Score** with minimal time decay only for tie-breaking • Showing {filteredPosts.length} posts
+              Ranked by Engagement Score with minimal time decay • Showing {filteredPosts.length} posts
             </p>
           </div>
 
@@ -824,7 +793,7 @@ const Home = () => {
               filteredPosts.map((post, index) => {
                 const postUser = post.user && typeof post.user === 'object' ? post.user : {};
                 const postUserName = postUser?.name || "Unknown";
-                const mediaUrl = post.media?.image || post.media?.url || ''; // Using 'image' or 'url'
+                const mediaUrl = post.media?.image || post.media?.url || '';
                 const relativeTime = formatRelativeTime(post.createdAt);
                 const isLiked = isPostLikedByUser(post, currentUser?._id);
                 
@@ -835,12 +804,24 @@ const Home = () => {
                         #{index + 1}
                       </div>
                       
-                      {mediaUrl && (
-                        <div className="post-image-container">
-                          {/* Display image/video thumbnail */}
+                      <div className="post-image-container">
+                        {mediaUrl ? (
                           <img src={mediaUrl} alt={post.title} className="post-image" />
-                        </div>
-                      )}
+                        ) : (
+                          <div style={{
+                            width: '100%',
+                            height: '100%',
+                            backgroundColor: '#3b82f6',
+                            borderRadius: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white'
+                          }}>
+                            <FileTextIcon size={48} strokeWidth={1.5} />
+                          </div>
+                        )}
+                      </div>
                       
                       <div className="post-content">
                         <div className="post-header">
@@ -862,7 +843,6 @@ const Home = () => {
                           </div>
                           <div className="author-info">
                             <div className="author-name">{postUserName}</div>
-                            {/* NOTE: You'll need to fetch user profile info (like role) separately or include it in the post population */}
                             <div className="author-role">Developer</div> 
                           </div>
                           <button className="follow-btn">Follow</button>
@@ -878,15 +858,22 @@ const Home = () => {
                             style={{
                               display: 'flex',
                               alignItems: 'center',
-          
-    // The rest of the original post-stats content is here. It was cut off, but the fix is above.
-    // The previous error was specifically inside getUniqueCommenters, which has been corrected.
-    
-    // The original code was cut off here. Assuming the remaining part is valid React JSX:
-    // ...
-    // The last line of the previous block was:
-    // alignItems: 'center',
-    // ...
+                              gap: '4px',
+                              background: 'none',
+                              border: 'none',
+                              cursor: currentUser?.token ? 'pointer' : 'not-allowed',
+                              color: isLiked ? '#10b981' : 'var(--text-secondary)',
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              transition: 'background-color 0.2s'
+                            }}
+                            onMouseEnter={(e) => {
+                              if (currentUser?.token) {
+                                e.currentTarget.style.backgroundColor = 'var(--nav-active)';
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
                             }}
                           >
                             <ThumbUpIcon size={16} fill={isLiked ? '#10b981' : 'none'} stroke={isLiked ? '#10b981' : 'currentColor'} />
