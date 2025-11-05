@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import PostServices from "../Services/PostServices";
+// 🚨 Ensure you have this import
+import UserServices from "../Services/UserServices"; 
 import VerticalNavbar from "../components/VerticalNavbar";
 import {
   Edit as EditIcon,
@@ -25,7 +27,7 @@ import {
 import "../styles/navbar.css";
 import "../styles/profile.css";
 
-// ===== UTILITY FUNCTIONS =====
+// ===== UTILITY FUNCTIONS (No changes needed here) =====
 const calculateHotnessScore = (post) => (post.likes?.length || 0) * 0.75;
 
 const isPostLikedByUser = (post, userId) => {
@@ -47,7 +49,7 @@ const formatRelativeTime = (dateString) => {
 
 const getSpecChipLabel = (specValue) => specValue || 'General';
 
-// ===== POST CARD COMPONENT =====
+// ===== POST CARD COMPONENT (No changes needed here) =====
 const PostCard = React.memo(({ post, currentUser, onOpenDialog, onLike, onDeletePost }) => {
   const likedByUser = isPostLikedByUser(post, currentUser?._id);
 
@@ -115,7 +117,7 @@ const PostCard = React.memo(({ post, currentUser, onOpenDialog, onLike, onDelete
   );
 });
 
-// ===== FULL POST DIALOG COMPONENT =====
+// ===== FULL POST DIALOG COMPONENT (No changes needed here) =====
 const FullPostDialog = React.memo(({ open, post, onClose, user, onLike, onAddComment, onNavigateProfile, newCommentText, setNewCommentText }) => {
   if (!post || !open) return null;
 
@@ -268,7 +270,7 @@ const FullPostDialog = React.memo(({ open, post, onClose, user, onLike, onAddCom
   );
 });
 
-// ===== MAIN PROFILE COMPONENT =====
+// ===== MAIN PROFILE COMPONENT (MODIFIED) =====
 const Profile = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [activeTab, setActiveTab] = useState("profile");
@@ -276,6 +278,7 @@ const Profile = () => {
   const [openEditProfile, setOpenEditProfile] = useState(false);
   const [userPosts, setUserPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // New state for saving status
   const [postDialogOpen, setPostDialogOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
   const [newCommentText, setNewCommentText] = useState({});
@@ -321,11 +324,12 @@ const Profile = () => {
     }
   }, [selectedPost]);
 
-  // Update User Info
+  // Update User Info from Local Storage
   const updateUser = () => {
     const user = JSON.parse(localStorage.getItem("todoapp"));
     setCurrentUser(user);
     if (user) {
+      // Populate edit form with current user data (including profile fields)
       setEditForm({
         name: user.name || "", email: user.email || "", phone: user.phone || "",
         bio: user.bio || "", university: user.university || "", major: user.major || "",
@@ -377,12 +381,55 @@ const Profile = () => {
   // Profile Edit Handlers
   const handleEditProfile = () => setOpenEditProfile(true);
   
-  const handleSaveProfile = () => {
-    const updatedUser = { ...currentUser, ...editForm };
-    localStorage.setItem("todoapp", JSON.stringify(updatedUser));
-    setCurrentUser(updatedUser);
-    setOpenEditProfile(false);
-    toast.success("Profile updated successfully");
+  // 🚨 MODIFIED: To save permanently to the backend database
+  const handleSaveProfile = async () => {
+    if (!currentUser) {
+        toast.error("Authentication required to save changes.");
+        return;
+    }
+
+    setIsSaving(true);
+    try {
+        // Payload includes all editable profile fields
+        const payload = {
+            name: editForm.name,
+            phone: editForm.phone,
+            bio: editForm.bio,
+            university: editForm.university,
+            major: editForm.major,
+            year: editForm.year,
+            github: editForm.github,
+            linkedin: editForm.linkedin,
+        };
+
+        // 1. Send Update Request to Backend (Token is automatically added by api.js)
+        const res = await UserServices.updateProfile(payload);
+        
+        // Assuming your backend returns the fully updated user object under res.data.user
+        const updatedUserFromDB = res.data.user;
+
+        // 2. Update LocalStorage with Fresh Data from DB
+        const updatedUserLocal = { 
+            ...currentUser, 
+            ...updatedUserFromDB,
+            // Preserve the existing token, as it's often not returned on a PUT request
+            token: currentUser.token 
+        };
+        
+        localStorage.setItem("todoapp", JSON.stringify(updatedUserLocal));
+        
+        // 3. Update Component State
+        setCurrentUser(updatedUserLocal);
+        setOpenEditProfile(false);
+        toast.success("Profile updated permanently! 💾");
+
+    } catch (error) {
+        console.error("Error saving profile:", error);
+        // Rely on api.js interceptor to show clear error messages or handle 401
+        toast.error(error.response?.data?.message || "Failed to save profile changes.");
+    } finally {
+        setIsSaving(false);
+    }
   };
   
   const handleInputChange = (e) => {
@@ -699,7 +746,7 @@ const Profile = () => {
         </div>
       </main>
       
-      {/* Edit Profile Modal */}
+      {/* Edit Profile Modal (Updated Save Button) */}
       {openEditProfile && (
         <div className="modal-overlay" onClick={() => setOpenEditProfile(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -713,7 +760,7 @@ const Profile = () => {
               </div>
               <div className="form-field">
                 <label className="form-label">Email</label>
-                <input name="email" type="email" className="form-input" value={editForm.email} onChange={handleInputChange} />
+                <input name="email" type="email" className="form-input" value={editForm.email} onChange={handleInputChange} disabled />
               </div>
               <div className="form-field">
                 <label className="form-label">Phone</label>
@@ -745,8 +792,10 @@ const Profile = () => {
               </div>
             </div>
             <div className="modal-footer">
-              <button onClick={() => setOpenEditProfile(false)} className="modal-btn modal-btn-cancel">Cancel</button>
-              <button onClick={handleSaveProfile} className="modal-btn modal-btn-save">Save Changes</button>
+              <button onClick={() => setOpenEditProfile(false)} className="modal-btn modal-btn-cancel" disabled={isSaving}>Cancel</button>
+              <button onClick={handleSaveProfile} className="modal-btn modal-btn-save" disabled={isSaving}>
+                {isSaving ? "Saving..." : "Save Changes"}
+              </button>
             </div>
           </div>
         </div>

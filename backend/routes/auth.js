@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User'); // Use the User model
 const { protect } = require('../middleware/auth');
 
-// REGISTER (FIXED: Removes manual hashing)
+// --- REGISTER ---
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -19,7 +19,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    // ⭐️ FIX: Pass the plain password. The User model's pre('save') hook handles hashing.
+    // Pass the plain password. The User model's pre('save') hook handles hashing.
     const user = await User.create({
       name,
       email,
@@ -43,7 +43,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// LOGIN (FIXED: Uses matchPassword instance method)
+// --- LOGIN ---
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -57,7 +57,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // ⭐️ CRITICAL FIX: Use the model's instance method for comparison ⭐️
+    // Use the model's instance method for comparison
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -67,13 +67,13 @@ router.post('/login', async (req, res) => {
       expiresIn: '30d',
     });
 
+    // Return the user object with all profile fields (for persistence)
     res.json({
       _id: user._id,
       name: user.name,
       email: user.email,
       token,
       profileSetupComplete: user.profileSetupComplete || false,
-      // Ensure all profile fields are returned for frontend state
       headline: user.headline,
       about: user.about,
       experiences: user.experiences,
@@ -94,10 +94,9 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// GET CURRENT USER (Protected)
+// --- GET CURRENT USER (Protected) ---
 router.get('/me', protect, async (req, res) => {
   try {
-    // req.user is set by middleware/auth.js
     const user = await User.findById(req.user._id).select('-password');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -109,7 +108,8 @@ router.get('/me', protect, async (req, res) => {
   }
 });
 
-// UPDATE CURRENT USER PROFILE (Protected)
+// --- UPDATE CURRENT USER PROFILE (Protected) ---
+// ⭐️ This route is correctly implemented and will now be accessed via /api/users/profile
 router.put('/profile', protect, async (req, res) => {
   try {
     const {
@@ -123,7 +123,7 @@ router.put('/profile', protect, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Update fields if provided
+    // Update fields if provided (The logic to update fields is correct)
     if (name) user.name = name;
     if (email) user.email = email;
     if (phone !== undefined) user.phone = phone;
@@ -137,8 +137,9 @@ router.put('/profile', protect, async (req, res) => {
     if (linkedin !== undefined) user.linkedin = linkedin;
     if (profileSetupComplete !== undefined) user.profileSetupComplete = profileSetupComplete;
 
-    const updatedUser = await user.save();
+    const updatedUser = await user.save(); // Correctly using .save()
 
+    // Return all necessary profile fields to update the frontend state/localStorage
     res.json({
       _id: updatedUser._id, name: updatedUser.name, email: updatedUser.email, 
       phone: updatedUser.phone, bio: updatedUser.bio, 
@@ -153,7 +154,7 @@ router.put('/profile', protect, async (req, res) => {
   }
 });
 
-// GET PUBLIC PROFILE BY USER ID (Anyone can view)
+// --- GET PUBLIC PROFILE BY USER ID ---
 router.get('/profile/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
