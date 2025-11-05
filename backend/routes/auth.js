@@ -1,7 +1,8 @@
-// backend/routes/auth.js (FIXED VERSION - Profile Saves Permanently)
+// backend/routes/auth.js (WITH EXPLICIT BCrypt)
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs'); // 💡 ADDED: Import bcrypt
 const User = require('../models/User'); 
 const { protect } = require('../middleware/auth');
 
@@ -18,11 +19,16 @@ router.post('/register', async (req, res) => {
     if (userExists) {
       return res.status(400).json({ message: 'User already exists' });
     }
+    
+    // 💡 HASHING IMPLEMENTED HERE:
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
     const user = await User.create({
       name,
       email,
-      password: password, 
+      // 💡 Use the HASHED password
+      password: hashedPassword, 
     });
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
@@ -55,8 +61,11 @@ router.post('/login', async (req, res) => {
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
-
-    const isMatch = await user.matchPassword(password);
+    
+    // 💡 HASHING COMPARISON IMPLEMENTED HERE:
+    // This REPLACES the assumed 'user.matchPassword(password)'
+    const isMatch = await bcrypt.compare(password, user.password); 
+    
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -94,6 +103,7 @@ router.post('/login', async (req, res) => {
 // --- GET CURRENT USER (Protected) ---
 router.get('/me', protect, async (req, res) => {
   try {
+    // ... (No change here)
     const user = await User.findById(req.user._id).select('-password');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -107,6 +117,7 @@ router.get('/me', protect, async (req, res) => {
 
 // --- UPDATE CURRENT USER PROFILE (Protected) - FIXED ---
 router.put('/profile', protect, async (req, res) => {
+  // ... (No change here - password update logic would be complex)
   try {
     console.log('📝 Received profile update request:', req.body);
     console.log('👤 User ID from token:', req.user._id);
@@ -171,6 +182,7 @@ router.put('/profile', protect, async (req, res) => {
 // --- GET PUBLIC PROFILE BY USER ID ---
 router.get('/profile/:userId', async (req, res) => {
   try {
+    // ... (No change here)
     const { userId } = req.params;
 
     const selectFields = 
