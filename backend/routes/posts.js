@@ -17,6 +17,7 @@ try {
 }
 
 // ---------------- CREATE POST WITH FILE UPLOAD ----------------
+// ... (Your existing CREATE POST logic) ...
 router.post('/', protect, (req, res, next) => {
   if (upload) {
     upload.single('mediaFile')(req, res, (error) => {
@@ -95,13 +96,10 @@ router.post('/', protect, (req, res, next) => {
     res.status(500).json({ message: error.message || 'Server Error during post creation.' });
   }
 });
+// ---------------- END CREATE POST ----------------
 
-// ---------------- RECORD POST VIEW (NEW ROUTE) ----------------
-/**
- * @desc    Records a view for a post, increments seasonal viewsCount.
- * @route   PUT /api/posts/:id/view (Using PUT to reflect an update/change to the resource)
- * @access  Private 
- */
+// ---------------- RECORD POST VIEW ----------------
+// ... (Your existing RECORD POST VIEW logic) ...
 router.put('/:id/view', protect, async (req, res) => {
     try {
         const postId = req.params.id;
@@ -152,7 +150,8 @@ router.put('/:id/view', protect, async (req, res) => {
 });
 // ---------------- END RECORD POST VIEW ----------------
 
-// ---------------- GET ALL POSTS (HOME FEED - WITH DECAY SYSTEM) ----------------
+// ---------------- GET ALL POSTS (HOME FEED) ----------------
+// ... (Your existing GET ALL POSTS logic) ...
 router.get('/', async (req, res) => {
   try {
     const { specialization } = req.query; 
@@ -173,7 +172,6 @@ router.get('/', async (req, res) => {
       const ageInHours = (now - post.createdAt) / (1000 * 60 * 60) + 0.1; 
       const likes = post.likes.length;
       const comments = post.comments.length;
-      // NOTE: You can also incorporate post.views.length or post.rankingStats.viewsCount here
       // For now, keeping the original rank formula:
       const rankScore = (likes + (comments * 2)) / ageInHours; 
       
@@ -197,8 +195,10 @@ router.get('/', async (req, res) => {
     res.status(500).json({ message: 'Error fetching posts' });
   }
 });
+// ---------------- END GET ALL POSTS ----------------
 
 // ---------------- GET MY POSTS ----------------
+// ... (Your existing GET MY POSTS logic) ...
 router.get('/my-posts', protect, async (req, res) => {
   try {
     const posts = await Post.find({ user: req.user._id })
@@ -213,8 +213,45 @@ router.get('/my-posts', protect, async (req, res) => {
     res.status(500).json({ message: 'Error fetching user posts' });
   }
 });
+// ---------------- END GET MY POSTS ----------------
+
+// ---------------- GET POSTS BY USER ID (MISSING ROUTE ADDED HERE) ----------------
+/**
+ * @desc    Get all posts by a specific user ID for public profile view.
+ * @route   GET /api/posts/user/:userId 
+ * @access  Public (since profile is public)
+ */
+router.get('/user/:userId', async (req, res) => {
+  try {
+    // 1. Get the userId from the URL parameters
+    const userId = req.params.userId;
+
+    // 2. Find posts matching that user ID, excluding archived posts
+    const posts = await Post.find({ user: userId, isArchived: false })
+      .populate('user', 'name profileImage')
+      .populate('likes.user', 'name email')
+      .populate('comments.user', 'name profileImage')
+      .sort({ createdAt: -1 }); // Show newest first
+
+    if (posts.length === 0) {
+      // You can return 200 with an empty array if the user has no posts, 
+      // or 404 if the user ID is simply bad (though Post.find doesn't check user existence).
+      // Returning an empty array is generally safer here.
+      return res.json([]); 
+    }
+
+    res.json(posts);
+
+  } catch (error) {
+    console.error(`Error fetching posts for user ${req.params.userId}:`, error.message);
+    // If the userId format is invalid (e.g., not a valid MongoDB ObjectId), Mongoose might throw an error.
+    res.status(500).json({ message: 'Error fetching user posts. Invalid user ID format or server error.' });
+  }
+});
+// ---------------- END GET POSTS BY USER ID ----------------
 
 // ---------------- UPDATE POST ----------------
+// ... (Your existing UPDATE POST logic) ...
 router.put('/:id', protect, (req, res, next) => {
   if (upload) {
     upload.single('mediaFile')(req, res, next);
@@ -266,8 +303,10 @@ router.put('/:id', protect, (req, res, next) => {
     res.status(500).json({ message: error.message });
   }
 });
+// ---------------- END UPDATE POST ----------------
 
 // ---------------- DELETE POST ----------------
+// ... (Your existing DELETE POST logic) ...
 router.delete('/:id', protect, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
@@ -294,8 +333,10 @@ router.delete('/:id', protect, async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+// ---------------- END DELETE POST ----------------
 
-// ---------------- LIKE / UNLIKE POST (FIXED) ----------------
+// ---------------- LIKE / UNLIKE POST ----------------
+// ... (Your existing LIKE / UNLIKE POST logic) ...
 router.put('/:id/like', protect, async (req, res) => {
   try {
     console.log('=== LIKE/UNLIKE REQUEST START ===');
@@ -389,8 +430,10 @@ router.put('/:id/like', protect, async (req, res) => {
     });
   }
 });
+// ---------------- END LIKE / UNLIKE POST ----------------
 
 // ---------------- ADD COMMENT ----------------
+// ... (Your existing ADD COMMENT logic) ...
 router.post('/:id/comment', protect, async (req, res) => {
   try {
     const { text } = req.body; 
@@ -434,5 +477,6 @@ router.post('/:id/comment', protect, async (req, res) => {
     res.status(500).json({ message: 'Failed to add comment: ' + error.message });
   }
 });
+// ---------------- END ADD COMMENT ----------------
 
 module.exports = router;

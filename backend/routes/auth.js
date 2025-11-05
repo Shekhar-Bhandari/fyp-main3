@@ -1,8 +1,8 @@
-// backend/routes/auth.js (FINAL FIXED VERSION)
+// backend/routes/auth.js (FIXED VERSION - Profile Saves Permanently)
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); // Use the User model
+const User = require('../models/User'); 
 const { protect } = require('../middleware/auth');
 
 // --- REGISTER ---
@@ -19,7 +19,6 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    // Pass the plain password. The User model's pre('save') hook handles hashing.
     const user = await User.create({
       name,
       email,
@@ -57,7 +56,6 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Use the model's instance method for comparison
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -67,7 +65,6 @@ router.post('/login', async (req, res) => {
       expiresIn: '30d',
     });
 
-    // Return the user object with all profile fields (for persistence)
     res.json({
       _id: user._id,
       name: user.name,
@@ -108,10 +105,12 @@ router.get('/me', protect, async (req, res) => {
   }
 });
 
-// --- UPDATE CURRENT USER PROFILE (Protected) ---
-// ⭐️ This route is correctly implemented and will now be accessed via /api/users/profile
+// --- UPDATE CURRENT USER PROFILE (Protected) - FIXED ---
 router.put('/profile', protect, async (req, res) => {
   try {
+    console.log('📝 Received profile update request:', req.body);
+    console.log('👤 User ID from token:', req.user._id);
+
     const {
       name, email, phone, bio, university, major, year, interests,
       skills, github, linkedin, profileSetupComplete
@@ -123,9 +122,9 @@ router.put('/profile', protect, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Update fields if provided (The logic to update fields is correct)
-    if (name) user.name = name;
-    if (email) user.email = email;
+    // Update fields if provided 
+    if (name !== undefined) user.name = name;
+    if (email !== undefined) user.email = email;
     if (phone !== undefined) user.phone = phone;
     if (bio !== undefined) user.bio = bio;
     if (university !== undefined) user.university = university;
@@ -137,19 +136,34 @@ router.put('/profile', protect, async (req, res) => {
     if (linkedin !== undefined) user.linkedin = linkedin;
     if (profileSetupComplete !== undefined) user.profileSetupComplete = profileSetupComplete;
 
-    const updatedUser = await user.save(); // Correctly using .save()
+    const updatedUser = await user.save();
+    
+    console.log('✅ Profile updated successfully:', updatedUser.name);
 
-    // Return all necessary profile fields to update the frontend state/localStorage
+    // Return the complete updated user object (excluding password)
     res.json({
-      _id: updatedUser._id, name: updatedUser.name, email: updatedUser.email, 
-      phone: updatedUser.phone, bio: updatedUser.bio, 
-      university: updatedUser.university, major: updatedUser.major,
-      year: updatedUser.year, interests: updatedUser.interests,
-      skills: updatedUser.skills, github: updatedUser.github, 
-      linkedin: updatedUser.linkedin, profileSetupComplete: updatedUser.profileSetupComplete,
+      _id: updatedUser._id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      phone: updatedUser.phone,
+      bio: updatedUser.bio,
+      university: updatedUser.university,
+      major: updatedUser.major,
+      year: updatedUser.year,
+      interests: updatedUser.interests,
+      skills: updatedUser.skills,
+      github: updatedUser.github,
+      linkedin: updatedUser.linkedin,
+      profileSetupComplete: updatedUser.profileSetupComplete,
+      profileImage: updatedUser.profileImage,
+      headline: updatedUser.headline,
+      about: updatedUser.about,
+      experiences: updatedUser.experiences,
+      createdAt: updatedUser.createdAt,
+      updatedAt: updatedUser.updatedAt
     });
   } catch (error) {
-    console.error('Update profile error:', error);
+    console.error('❌ Update profile error:', error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -159,20 +173,17 @@ router.get('/profile/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // Find user and exclude sensitive information
-    const user = await User.findById(userId).select('-password -__v');
+    const selectFields = 
+        'name email bio university major year interests skills github linkedin profileImage createdAt headline about experiences';
+
+    const user = await User.findById(userId).select(selectFields);
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Return public profile information
-    res.json({
-      _id: user._id, name: user.name, email: user.email, bio: user.bio,
-      university: user.university, major: user.major, year: user.year,
-      interests: user.interests, skills: user.skills, github: user.github,
-      linkedin: user.linkedin, profileImage: user.profileImage, createdAt: user.createdAt,
-    });
+    res.json(user);
+
   } catch (error) {
     console.error('Get public profile error:', error);
     if (error.kind === 'ObjectId') {

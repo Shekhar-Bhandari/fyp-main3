@@ -1,6 +1,5 @@
-// Leaderboard.jsx
 import React, { useEffect, useState, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom"; // <-- Added useLocation
+import { useNavigate, useLocation } from "react-router-dom"; 
 import PostServices from "../Services/PostServices";
 import toast from "react-hot-toast";
 import VerticalNavbar from "../components/VerticalNavbar";
@@ -13,10 +12,10 @@ import {
   Sun as SunIcon,
   Moon as MoonIcon,
   Calendar as CalendarIcon, 
-  Home as HomeIcon, // <-- Added for menu item
-  Compass as ExploreIcon, // <-- Added for menu item
-  User as UserIcon, // <-- Added for menu item
-  LogOut as LogoutIcon, // <-- Added for menu item
+  Home as HomeIcon, 
+  Compass as ExploreIcon, 
+  User as UserIcon, 
+  LogOut as LogoutIcon, 
 } from "lucide-react";
 import '../styles/navbar.css';
 import '../styles/leaderboard.css';
@@ -47,7 +46,7 @@ const Leaderboard = () => {
   const [availablePeriods, setAvailablePeriods] = useState([]);
 
   const navigate = useNavigate();
-  const location = useLocation(); // <-- Get current path
+  const location = useLocation(); 
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -224,8 +223,8 @@ const Leaderboard = () => {
       <VerticalNavbar 
         currentUser={currentUser} 
         onLogout={handleLogout} 
-        menuItems={menuItems} // <-- New prop
-        activePath={location.pathname} // <-- New prop for highlighting
+        menuItems={menuItems} 
+        activePath={location.pathname} 
       />
 
       {/* Main Content */}
@@ -266,7 +265,7 @@ const Leaderboard = () => {
           </div>
         </header>
 
-        {/* Content Container (Rankings List, etc. remains the same) */}
+        {/* Content Container */}
         <div className="content-container">
           {/* User Rankings List */}
           <div className="rankings-list">
@@ -327,6 +326,8 @@ const Leaderboard = () => {
                         <div className="user-name">
                           {user.name}
                           {isCurrentUser && <span className="you-badge">You</span>}
+                          {/* ❌ REMOVED FOLLOW BUTTON ❌ */}
+                          {/* The previous button block is removed: 
                           <button 
                             onClick={(e) => { e.stopPropagation(); toast.info('Follow feature coming soon!'); }}
                             style={{
@@ -335,7 +336,8 @@ const Leaderboard = () => {
                             }}
                           >
                             Follow
-                          </button>
+                          </button> 
+                          */}
                         </div>
                         <div className="user-spec">
                           {getSpecializationLabel(user.specialization)}

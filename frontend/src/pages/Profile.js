@@ -2,7 +2,6 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import PostServices from "../Services/PostServices";
-// 🚨 Ensure you have this import
 import UserServices from "../Services/UserServices"; 
 import VerticalNavbar from "../components/VerticalNavbar";
 import {
@@ -27,7 +26,7 @@ import {
 import "../styles/navbar.css";
 import "../styles/profile.css";
 
-// ===== UTILITY FUNCTIONS (No changes needed here) =====
+// ===== UTILITY FUNCTIONS =====
 const calculateHotnessScore = (post) => (post.likes?.length || 0) * 0.75;
 
 const isPostLikedByUser = (post, userId) => {
@@ -49,7 +48,7 @@ const formatRelativeTime = (dateString) => {
 
 const getSpecChipLabel = (specValue) => specValue || 'General';
 
-// ===== POST CARD COMPONENT (No changes needed here) =====
+// ===== POST CARD COMPONENT =====
 const PostCard = React.memo(({ post, currentUser, onOpenDialog, onLike, onDeletePost }) => {
   const likedByUser = isPostLikedByUser(post, currentUser?._id);
 
@@ -99,7 +98,6 @@ const PostCard = React.memo(({ post, currentUser, onOpenDialog, onLike, onDelete
           </div>
 
           <div className="post-card-stats-right">
-            {/* UPDATED LIKE BUTTON */}
             <button
               onClick={() => onLike(post._id)}
               className={`like-btn ${likedByUser ? 'liked' : ''}`}
@@ -117,7 +115,7 @@ const PostCard = React.memo(({ post, currentUser, onOpenDialog, onLike, onDelete
   );
 });
 
-// ===== FULL POST DIALOG COMPONENT (No changes needed here) =====
+// ===== FULL POST DIALOG COMPONENT =====
 const FullPostDialog = React.memo(({ open, post, onClose, user, onLike, onAddComment, onNavigateProfile, newCommentText, setNewCommentText }) => {
   if (!post || !open) return null;
 
@@ -167,7 +165,6 @@ const FullPostDialog = React.memo(({ open, post, onClose, user, onLike, onAddCom
             <div className="post-card-divider" style={{ marginBottom: '16px' }}></div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              {/* UPDATED LIKE BUTTON */}
               <button
                 onClick={() => onLike(post._id)}
                 className={`stat-btn ${likedByUser ? 'liked' : ''}`}
@@ -270,7 +267,7 @@ const FullPostDialog = React.memo(({ open, post, onClose, user, onLike, onAddCom
   );
 });
 
-// ===== MAIN PROFILE COMPONENT (MODIFIED) =====
+// ===== MAIN PROFILE COMPONENT =====
 const Profile = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [activeTab, setActiveTab] = useState("profile");
@@ -278,7 +275,8 @@ const Profile = () => {
   const [openEditProfile, setOpenEditProfile] = useState(false);
   const [userPosts, setUserPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
-  const [isSaving, setIsSaving] = useState(false); // New state for saving status
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [postDialogOpen, setPostDialogOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
   const [newCommentText, setNewCommentText] = useState({});
@@ -324,19 +322,74 @@ const Profile = () => {
     }
   }, [selectedPost]);
 
-  // Update User Info from Local Storage
-  const updateUser = () => {
-    const user = JSON.parse(localStorage.getItem("todoapp"));
-    setCurrentUser(user);
-    if (user) {
-      // Populate edit form with current user data (including profile fields)
+  // 🔥 NEW: Refresh Profile from Backend
+  const refreshProfile = useCallback(async () => {
+    const storedUser = JSON.parse(localStorage.getItem("todoapp"));
+    if (!storedUser?.token) return;
+
+    setIsRefreshing(true);
+    try {
+      const response = await UserServices.getUserById(storedUser._id);
+      const freshUserData = response.data.user || response.data;
+
+      // Merge with stored data, preserving token
+      const updatedUser = {
+        ...storedUser,
+        ...freshUserData,
+        token: storedUser.token,
+      };
+
+      // Update localStorage
+      localStorage.setItem("todoapp", JSON.stringify(updatedUser));
+
+      // Update state
+      setCurrentUser(updatedUser);
+
+      // Update edit form
       setEditForm({
-        name: user.name || "", email: user.email || "", phone: user.phone || "",
-        bio: user.bio || "", university: user.university || "", major: user.major || "",
-        year: user.year || "", github: user.github || "", linkedin: user.linkedin || "",
+        name: updatedUser.name || "",
+        email: updatedUser.email || "",
+        phone: updatedUser.phone || "",
+        bio: updatedUser.bio || "",
+        university: updatedUser.university || "",
+        major: updatedUser.major || "",
+        year: updatedUser.year || "",
+        github: updatedUser.github || "",
+        linkedin: updatedUser.linkedin || "",
+      });
+
+      console.log("✅ Profile refreshed from database");
+    } catch (error) {
+      console.error("Error refreshing profile:", error);
+      // If token is invalid, logout
+      if (error.response?.status === 401) {
+        toast.error("Session expired. Please log in again.");
+        localStorage.removeItem("todoapp");
+        navigate("/auth");
+      }
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [navigate]);
+
+  // Update User Info from Local Storage
+  const updateUser = useCallback(() => {
+    const user = JSON.parse(localStorage.getItem("todoapp"));
+    if (user) {
+      setCurrentUser(user);
+      setEditForm({
+        name: user.name || "",
+        email: user.email || "",
+        phone: user.phone || "",
+        bio: user.bio || "",
+        university: user.university || "",
+        major: user.major || "",
+        year: user.year || "",
+        github: user.github || "",
+        linkedin: user.linkedin || "",
       });
     }
-  };
+  }, []);
 
   // Fetch User Posts
   const fetchUserPosts = async () => {
@@ -358,15 +411,18 @@ const Profile = () => {
     }
   };
 
-  // Component Mount
+  // Component Mount - Load user and refresh from backend
   useEffect(() => {
-    updateUser();
-    if (JSON.parse(localStorage.getItem("todoapp"))) {
+    const storedUser = JSON.parse(localStorage.getItem("todoapp"));
+    if (storedUser) {
+      updateUser();
+      refreshProfile(); // 🔥 Fetch fresh data from backend
       fetchUserPosts();
     }
+
     window.addEventListener("storage", updateUser);
     return () => window.removeEventListener("storage", updateUser);
-  }, []);
+  }, [updateUser, refreshProfile]);
 
   // Logout Handler
   const handleLogout = () => {
@@ -381,54 +437,81 @@ const Profile = () => {
   // Profile Edit Handlers
   const handleEditProfile = () => setOpenEditProfile(true);
   
-  // 🚨 MODIFIED: To save permanently to the backend database
+  // 🔥 IMPROVED: Save Profile Permanently to Database
   const handleSaveProfile = async () => {
     if (!currentUser) {
-        toast.error("Authentication required to save changes.");
-        return;
+      toast.error("Authentication required to save changes.");
+      return;
+    }
+
+    // Validate required fields
+    if (!editForm.name?.trim()) {
+      toast.error("Name is required.");
+      return;
     }
 
     setIsSaving(true);
     try {
-        // Payload includes all editable profile fields
-        const payload = {
-            name: editForm.name,
-            phone: editForm.phone,
-            bio: editForm.bio,
-            university: editForm.university,
-            major: editForm.major,
-            year: editForm.year,
-            github: editForm.github,
-            linkedin: editForm.linkedin,
-        };
+      // Prepare clean payload
+      const payload = {
+        name: editForm.name.trim(),
+        phone: editForm.phone?.trim() || '',
+        bio: editForm.bio?.trim() || '',
+        university: editForm.university?.trim() || '',
+        major: editForm.major?.trim() || '',
+        year: editForm.year?.trim() || '',
+        github: editForm.github?.trim() || '',
+        linkedin: editForm.linkedin?.trim() || '',
+      };
 
-        // 1. Send Update Request to Backend (Token is automatically added by api.js)
-        const res = await UserServices.updateProfile(payload);
-        
-        // Assuming your backend returns the fully updated user object under res.data.user
-        const updatedUserFromDB = res.data.user;
+      console.log('📤 Sending profile update:', payload);
 
-        // 2. Update LocalStorage with Fresh Data from DB
-        const updatedUserLocal = { 
-            ...currentUser, 
-            ...updatedUserFromDB,
-            // Preserve the existing token, as it's often not returned on a PUT request
-            token: currentUser.token 
-        };
-        
-        localStorage.setItem("todoapp", JSON.stringify(updatedUserLocal));
-        
-        // 3. Update Component State
-        setCurrentUser(updatedUserLocal);
-        setOpenEditProfile(false);
-        toast.success("Profile updated permanently! 💾");
+      // Send update to backend
+      const response = await UserServices.updateProfile(payload);
+      
+      console.log('✅ Backend response:', response.data);
+
+      // Get updated user data from response
+      const updatedUserData = response.data.user || response.data;
+
+      // Merge with existing user data (preserve token)
+      const updatedUser = {
+        ...currentUser,
+        ...updatedUserData,
+        token: currentUser.token,
+      };
+
+      // Save to localStorage
+      localStorage.setItem("todoapp", JSON.stringify(updatedUser));
+
+      // Update component state
+      setCurrentUser(updatedUser);
+      
+      // Close modal
+      setOpenEditProfile(false);
+      
+      // Show success message
+      toast.success("Profile saved permanently! 💾✨");
 
     } catch (error) {
-        console.error("Error saving profile:", error);
-        // Rely on api.js interceptor to show clear error messages or handle 401
-        toast.error(error.response?.data?.message || "Failed to save profile changes.");
+      console.error("❌ Profile update error:", error);
+      
+      // Handle specific error cases
+      if (error.response?.status === 401) {
+        toast.error("Session expired. Please log in again.");
+        localStorage.removeItem("todoapp");
+        navigate("/auth");
+      } else if (error.response?.status === 400) {
+        toast.error(error.response?.data?.message || "Invalid profile data.");
+      } else if (error.response?.status === 404) {
+        toast.error("User not found. Please log in again.");
+        localStorage.removeItem("todoapp");
+        navigate("/auth");
+      } else {
+        toast.error(error.response?.data?.message || "Failed to save profile. Please try again.");
+      }
     } finally {
-        setIsSaving(false);
+      setIsSaving(false);
     }
   };
   
@@ -519,6 +602,15 @@ const Profile = () => {
         <header className="top-header">
           <div className="header-left">
             <h1 className="page-title">Profile</h1>
+            {isRefreshing && (
+              <span style={{ 
+                marginLeft: '12px', 
+                fontSize: '14px', 
+                color: 'var(--text-secondary)' 
+              }}>
+                Syncing...
+              </span>
+            )}
           </div>
           <div className="header-right">
             <button onClick={toggleDarkMode} className="dark-mode-toggle">
@@ -746,54 +838,138 @@ const Profile = () => {
         </div>
       </main>
       
-      {/* Edit Profile Modal (Updated Save Button) */}
+      {/* Edit Profile Modal */}
       {openEditProfile && (
         <div className="modal-overlay" onClick={() => setOpenEditProfile(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">Edit Profile</h2>
+              <button onClick={() => setOpenEditProfile(false)} className="post-action-btn">
+                <CloseIcon size={20} />
+              </button>
             </div>
             <div className="modal-body">
               <div className="form-field">
-                <label className="form-label">Name</label>
-                <input name="name" type="text" className="form-input" value={editForm.name} onChange={handleInputChange} />
+                <label className="form-label">Name *</label>
+                <input 
+                  name="name" 
+                  type="text" 
+                  className="form-input" 
+                  value={editForm.name} 
+                  onChange={handleInputChange}
+                  required 
+                />
               </div>
               <div className="form-field">
                 <label className="form-label">Email</label>
-                <input name="email" type="email" className="form-input" value={editForm.email} onChange={handleInputChange} disabled />
+                <input 
+                  name="email" 
+                  type="email" 
+                  className="form-input" 
+                  value={editForm.email} 
+                  onChange={handleInputChange} 
+                  disabled 
+                  style={{ backgroundColor: 'var(--disabled-bg)', cursor: 'not-allowed' }}
+                />
+                <small style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                  Email cannot be changed
+                </small>
               </div>
               <div className="form-field">
                 <label className="form-label">Phone</label>
-                <input name="phone" type="text" className="form-input" value={editForm.phone} onChange={handleInputChange} />
+                <input 
+                  name="phone" 
+                  type="text" 
+                  className="form-input" 
+                  value={editForm.phone} 
+                  onChange={handleInputChange}
+                  placeholder="Enter your phone number" 
+                />
               </div>
               <div className="form-field">
                 <label className="form-label">Bio</label>
-                <textarea name="bio" className="form-input form-textarea" value={editForm.bio} onChange={handleInputChange} rows={3} />
+                <textarea 
+                  name="bio" 
+                  className="form-input form-textarea" 
+                  value={editForm.bio} 
+                  onChange={handleInputChange} 
+                  rows={3}
+                  placeholder="Tell us about yourself..." 
+                />
               </div>
               <div className="form-field">
                 <label className="form-label">University</label>
-                <input name="university" type="text" className="form-input" value={editForm.university} onChange={handleInputChange} />
+                <input 
+                  name="university" 
+                  type="text" 
+                  className="form-input" 
+                  value={editForm.university} 
+                  onChange={handleInputChange}
+                  placeholder="Your university name" 
+                />
               </div>
               <div className="form-field">
                 <label className="form-label">Major</label>
-                <input name="major" type="text" className="form-input" value={editForm.major} onChange={handleInputChange} />
+                <input 
+                  name="major" 
+                  type="text" 
+                  className="form-input" 
+                  value={editForm.major} 
+                  onChange={handleInputChange}
+                  placeholder="Your field of study" 
+                />
               </div>
               <div className="form-field">
                 <label className="form-label">Year of Study</label>
-                <input name="year" type="text" className="form-input" value={editForm.year} onChange={handleInputChange} />
+                <input 
+                  name="year" 
+                  type="text" 
+                  className="form-input" 
+                  value={editForm.year} 
+                  onChange={handleInputChange}
+                  placeholder="e.g., Freshman, Sophomore, Junior, Senior" 
+                />
               </div>
               <div className="form-field">
                 <label className="form-label">GitHub Username</label>
-                <input name="github" type="text" className="form-input" value={editForm.github} onChange={handleInputChange} />
+                <input 
+                  name="github" 
+                  type="text" 
+                  className="form-input" 
+                  value={editForm.github} 
+                  onChange={handleInputChange}
+                  placeholder="Your GitHub username (without @)" 
+                />
               </div>
               <div className="form-field">
                 <label className="form-label">LinkedIn Profile</label>
-                <input name="linkedin" type="text" className="form-input" value={editForm.linkedin} onChange={handleInputChange} />
+                <input 
+                  name="linkedin" 
+                  type="text" 
+                  className="form-input" 
+                  value={editForm.linkedin} 
+                  onChange={handleInputChange}
+                  placeholder="Your LinkedIn username" 
+                />
               </div>
             </div>
             <div className="modal-footer">
-              <button onClick={() => setOpenEditProfile(false)} className="modal-btn modal-btn-cancel" disabled={isSaving}>Cancel</button>
-              <button onClick={handleSaveProfile} className="modal-btn modal-btn-save" disabled={isSaving}>
+              <button 
+                onClick={() => setOpenEditProfile(false)} 
+                className="modal-btn modal-btn-cancel" 
+                disabled={isSaving}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSaveProfile} 
+                className="modal-btn modal-btn-save" 
+                disabled={isSaving || !editForm.name?.trim()}
+                style={{
+                  opacity: (isSaving || !editForm.name?.trim()) ? 0.6 : 1,
+                  cursor: (isSaving || !editForm.name?.trim()) ? 'not-allowed' : 'pointer'
+                }}
+              >
                 {isSaving ? "Saving..." : "Save Changes"}
               </button>
             </div>

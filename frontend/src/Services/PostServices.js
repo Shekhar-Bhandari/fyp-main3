@@ -2,6 +2,30 @@
 import api from "./api";
 
 const PostServices = {
+  // Fetches posts for a specific user ID
+  /**
+   * @description Fetches all posts created by a specific user.
+   * @param {string} userId - The ID of the user whose posts to fetch.
+   */
+  getUserPosts: async (userId) => {
+    try {
+      // NOTE: Unlike getMyPosts, this endpoint typically doesn't need a token 
+      // if you're viewing a public profile, but including it doesn't hurt.
+      const user = JSON.parse(localStorage.getItem("todoapp"));
+      const token = user?.token;
+
+      // Assuming your backend endpoint is /posts/user/:userId
+      const url = `/posts/user/${userId}`;
+      
+      return await api.get(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+    } catch (error) {
+      console.error('Error in getUserPosts:', error);
+      throw error;
+    }
+  },
+
   // Fetches all posts, optionally filtered by specialization
   getAllPosts: async (specialization = "") => {
     try {
@@ -19,11 +43,7 @@ const PostServices = {
     }
   },
   
-  // === ADDED VIEW POST METHOD (Corrected and Integrated) ===
-  /**
-   * Records a view for a specific post.
-   * Note: The Home component checks for a token before calling this.
-   */
+  // Records a view for a specific post.
   viewPost: async (id) => {
     try {
       const user = JSON.parse(localStorage.getItem("todoapp"));
@@ -34,13 +54,12 @@ const PostServices = {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       
-      return response; // Returning the response object (which includes data)
+      return response;
     } catch (error) {
       console.error('Error in viewPost:', error);
       throw error;
     }
   },
-  // =========================================================
 
   // Fetches posts created by the current user
   getMyPosts: async () => {

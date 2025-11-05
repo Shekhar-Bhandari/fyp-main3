@@ -15,6 +15,7 @@ import { DarkModeProvider } from "./components/DarkModeToggle";
 import ProfileSetup from "./pages/ProfileSetup";
 import ViewProfile from "./pages/ViewProfile";
 import  Explore  from "./pages/Explore";
+import ProfileView from "./pages/ProfileView";
 
 function App() {
   return (
@@ -36,7 +37,10 @@ function App() {
 
           {/* 2. Route for Other Users (dynamic with ID) */}
           {/* ⚠️ Note: I am assuming you intended to use ViewProfile, not PublicProfile */}
-          <Route path="/profile-view/:userId" element={<ViewProfile />} />
+          
+          <Route path="/profile-view/:userId" element={<ViewProfile/>} />
+
+
           <Route path="/profile-setup" element={<ProfileSetup/>} />
           
         </Routes>
