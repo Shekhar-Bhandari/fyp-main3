@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // <-- import useNavigate
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast'; // Import toast for user feedback
 import { X, Plus, UserCircle, Heart, Code, Github, Linkedin } from 'lucide-react';
-import './ProfileSetup.css'; // import the CSS file
+import UserServices from '../Services/UserServices'; // <-- Service import
+import './ProfileSetup.css'; 
 
 const ProfileSetup = () => {
-  const navigate = useNavigate(); // <-- initialize navigate
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false); // Loading state for async calls
   const [profileData, setProfileData] = useState({
     name: '',
     bio: '',
@@ -68,7 +71,7 @@ const ProfileSetup = () => {
 
   const handleNext = () => {
     if (step === 1 && !profileData.name.trim()) {
-      alert('Please enter your name');
+      toast.error('Please enter your full name to continue.');
       return;
     }
     if (step < totalSteps) setStep(step + 1);
@@ -78,14 +81,41 @@ const ProfileSetup = () => {
     if (step > 1) setStep(step - 1);
   };
 
-  const handleComplete = () => {
+  /**
+   * 🚀 Saves the completed profile data to the backend database.
+   */
+  const handleComplete = async () => {
     const existingUser = JSON.parse(localStorage.getItem('todoapp') || '{}');
-    const updatedUser = { ...existingUser, ...profileData, profileSetupComplete: true };
-    localStorage.setItem('todoapp', JSON.stringify(updatedUser));
-    alert('Profile setup complete! Welcome to Connectiva 🎉');
+    const token = existingUser.token;
 
-    // Navigate to /home after completion
-    navigate('/home');
+    if (!token) {
+        toast.error('Authentication required. Please log in again.');
+        navigate('/auth'); // Redirect to login if no token
+        return;
+    }
+
+    setLoading(true);
+    try {
+        // 1. CALL THE API TO PERSIST DATA TO THE DATABASE
+        const response = await UserServices.updateProfile(profileData, token);
+        
+        // 2. UPDATE LOCAL STORAGE USING DATA RETURNED FROM SERVER
+        const updatedUser = { 
+            ...existingUser, 
+            ...response.data.user, // Use data returned from the server
+            profileSetupComplete: true 
+        };
+        localStorage.setItem('todoapp', JSON.stringify(updatedUser));
+        
+        toast.success('Profile setup complete! Data saved permanently. 🎉');
+        navigate('/home');
+
+    } catch (error) {
+        console.error("Failed to save profile permanently:", error);
+        toast.error(`Failed to save profile: ${error.response?.data?.message || 'Please check your connection.'}`);
+    } finally {
+        setLoading(false);
+    }
   };
 
   return (
@@ -248,9 +278,22 @@ const ProfileSetup = () => {
         )}
 
         <div className="navigation-buttons">
-          <button onClick={handleBack} disabled={step===1}>Back</button>
-          <button onClick={() => { if(step<totalSteps) setStep(step+1); else handleComplete(); }}>Skip</button>
-          {step<totalSteps ? <button onClick={handleNext}>Next</button> : <button onClick={handleComplete}>Complete</button>}
+          <button onClick={handleBack} disabled={step===1 || loading}>Back</button>
+          
+          <button 
+            onClick={() => { if(step<totalSteps) setStep(step+1); else handleComplete(); }} 
+            disabled={loading}
+          >
+            Skip
+          </button>
+          
+          {step<totalSteps ? (
+            <button onClick={handleNext} disabled={loading}>Next</button>
+          ) : (
+            <button onClick={handleComplete} disabled={loading}>
+              {loading ? 'Saving...' : 'Complete'}
+            </button>
+          )}
         </div>
       </div>
     </div>

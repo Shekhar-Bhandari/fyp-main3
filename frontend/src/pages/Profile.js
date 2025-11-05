@@ -97,9 +97,11 @@ const PostCard = React.memo(({ post, currentUser, onOpenDialog, onLike, onDelete
           </div>
 
           <div className="post-card-stats-right">
+            {/* UPDATED LIKE BUTTON */}
             <button
               onClick={() => onLike(post._id)}
               className={`like-btn ${likedByUser ? 'liked' : ''}`}
+              aria-label={likedByUser ? "Unlike post" : "Like post"}
             >
               <ThumbUpIcon size={16} />
               {likedByUser ? "Liked" : "Like"}
@@ -163,12 +165,17 @@ const FullPostDialog = React.memo(({ open, post, onClose, user, onLike, onAddCom
             <div className="post-card-divider" style={{ marginBottom: '16px' }}></div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              {/* UPDATED LIKE BUTTON */}
               <button
                 onClick={() => onLike(post._id)}
                 className={`stat-btn ${likedByUser ? 'liked' : ''}`}
+                aria-label={likedByUser ? "Unlike post" : "Like post"}
               >
                 <ThumbUpIcon size={18} />
-                {post.likes.length}
+                <span style={{ marginLeft: '4px' }}>
+                    {likedByUser ? "Liked" : "Like"}
+                </span>
+                <span style={{ marginLeft: '8px', fontWeight: 'normal' }}>{post.likes.length}</span>
               </button>
               <div className="stat-item">
                 <ChatBubbleIcon size={16} />

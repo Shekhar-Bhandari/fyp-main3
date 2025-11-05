@@ -597,3 +597,63 @@
     font-size: 14px;
   }
 }
+
+ /* --- Facebook-Style Like Button Styling --- */
+
+/* Base styles for the like button in PostCard and FullPostDialog */
+.like-btn, .stat-btn {
+    /* General button reset and display */
+    display: flex;
+    align-items: center;
+    gap: 4px; /* Space between icon and text */
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s ease-in-out;
+
+    /* Button appearance (box/padding) */
+    padding: 6px 12px;
+    border-radius: 6px; 
+    border: 1px solid var(--border-color); /* Subtle border for button definition */
+    background-color: transparent;
+    
+    /* Default (Unliked) State - Using a subtle blue (like Facebook) */
+    color: #4267B2; /* Facebook Blue */
+    border-color: #4267B2;
+}
+
+.like-btn:hover, .stat-btn:hover {
+    /* Slight change on hover */
+    opacity: 0.9;
+    background-color: rgba(66, 103, 178, 0.05); /* Light blue background on hover */
+}
+
+
+/* --- LIKED State: Green Color --- */
+
+.like-btn.liked, .stat-btn.liked {
+    /* When liked, turn green */
+    background-color: #10B981; /* A nice shade of green */
+    color: #ffffff; /* White text/icon */
+    border-color: #10B981;
+}
+
+.like-btn.liked:hover, .stat-btn.liked:hover {
+    /* Darker green on hover for liked state */
+    background-color: #059669; 
+    border-color: #059669;
+    opacity: 1; /* Reset opacity from base hover */
+}
+
+/* Specific adjustment for PostCard button to be less "boxy" (optional, but often preferred in feed views) */
+.post-card-stats-right .like-btn {
+    border: none; 
+    background-color: transparent;
+    font-weight: 500;
+    padding: 0; 
+}
+
+.post-card-stats-right .like-btn.liked {
+    color: #10B981; /* Green text/icon when liked, transparent background */
+    background-color: transparent;
+}

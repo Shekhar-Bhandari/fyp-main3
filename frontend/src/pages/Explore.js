@@ -12,9 +12,11 @@ import {
   MessageCircle as ChatBubbleIcon,
   X as CloseIcon,
   Eye as EyeIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
 } from "lucide-react";
 import "../styles/navbar.css";
-import "../styles/explore.css"; // Ensure you have your explore-specific styles here
+import "../styles/explore.css";
 
 const SPECIALIZATIONS = [
   { value: 'all', label: 'All Projects', icon: '🌟' },
@@ -37,7 +39,22 @@ const getSpecLabel = (specValue) => {
   return spec ? `${spec.icon} ${spec.label}` : specValue;
 };
 
-// Simplified: We no longer need week range helpers for the rolling 7-day feed
+// Helper to get week range (Monday to Sunday)
+const getWeekRange = (weekOffset = 0) => {
+  const now = new Date();
+  const currentDay = now.getDay(); // 0 (Sunday) to 6 (Saturday)
+  const diff = currentDay === 0 ? -6 : 1 - currentDay; // Adjust to get Monday
+  
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diff - (weekOffset * 7));
+  monday.setHours(0, 0, 0, 0);
+  
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  
+  return { start: monday, end: sunday };
+};
 
 const formatRelativeTime = (dateString) => {
   if (!dateString) return '';
@@ -101,20 +118,18 @@ const renderClickableText = (text) => {
   return parts;
 };
 
-// --- CORE EXPLORE PAGE LOGIC ---
 const Explore = () => {
-  const [posts, setPosts] = useState([]); // Raw posts (7-day, sorted)
-  const [filteredPosts, setFilteredPosts] = useState([]); // Filtered by specialization
+  const [allPosts, setAllPosts] = useState([]); // All posts from API
+  const [filteredPosts, setFilteredPosts] = useState([]); // Filtered by week + specialization
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedSpec, setSelectedSpec] = useState("all");
   const [darkMode, setDarkMode] = useState(false);
   const [postDialogOpen, setPostDialogOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = current week, 1 = last week, etc.
 
   const navigate = useNavigate();
-  const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-  const now = Date.now();
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -138,7 +153,6 @@ const Explore = () => {
 
   useEffect(() => {
     updateUser();
-    // Assuming PostServices.getAllPosts is used for the explore feed
     fetchPosts(); 
     window.addEventListener("storage", updateUser);
     return () => window.removeEventListener("storage", updateUser);
@@ -149,26 +163,12 @@ const Explore = () => {
       setLoading(true);
       const res = await PostServices.getAllPosts(); 
       
-      // 1. Filter: Last 7 days only
-      const recentPosts = res.data.filter(post => {
-        const postDate = new Date(post.createdAt).getTime();
-        return (now - postDate) <= ONE_WEEK_MS;
-      });
-
-      // 2. Minimum Filter (Optional): Remove empty posts
-      const activePosts = recentPosts.filter(post => {
-        const views = post.views?.length || 0;
-        const likes = post.likes?.length || 0;
-        // Keep the post if it has at least 1 view OR 1 like
-        return views > 0 || likes > 0; 
-      });
-
-      // 3. Ranking: Reverse Chronological (Newest First)
-      const sortedPosts = activePosts.sort((a, b) => 
+      // Sort all posts by newest first
+      const sortedPosts = res.data.sort((a, b) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
 
-      setPosts(sortedPosts);
+      setAllPosts(sortedPosts);
     } catch (error) {
       console.error("Error fetching posts:", error);
       toast.error("Failed to load posts");
@@ -177,26 +177,39 @@ const Explore = () => {
     }
   };
 
-  // 4. Client-Side Specialization Filter
+  // Filter posts by week and specialization
   useEffect(() => {
-    let filtered = posts;
+    const { start, end } = getWeekRange(weekOffset);
     
+    // Filter posts by current week range
+    let weekPosts = allPosts.filter(post => {
+      const postDate = new Date(post.createdAt).getTime();
+      return postDate >= start.getTime() && postDate <= end.getTime();
+    });
+    
+    // Filter by specialization
     if (selectedSpec !== "all") {
-      filtered = filtered.filter(post => post.specialization === selectedSpec);
+      weekPosts = weekPosts.filter(post => post.specialization === selectedSpec);
     }
     
-    setFilteredPosts(filtered);
-  }, [selectedSpec, posts]);
+    setFilteredPosts(weekPosts);
+  }, [weekOffset, selectedSpec, allPosts]);
 
   const handleLogout = () => {
     localStorage.removeItem("todoapp");
     setCurrentUser(null);
-    setPosts([]);
+    setAllPosts([]);
     toast.success("Logged out successfully");
     navigate("/auth");
   };
 
-  // Removed handlePreviousWeek/handleNextWeek as the feed is now a rolling 7-day view
+  const handlePreviousWeek = () => {
+    setWeekOffset(prev => prev + 1);
+  };
+
+  const handleNextWeek = () => {
+    setWeekOffset(prev => Math.max(0, prev - 1));
+  };
 
   const handleView = async (postId) => {
     if (!currentUser?.token) return;
@@ -223,7 +236,7 @@ const Explore = () => {
   };
 
   const updatePostInState = (updatedPost) => {
-    setPosts((prevPosts) =>
+    setAllPosts((prevPosts) =>
       prevPosts.map((post) => 
         post._id === updatedPost._id ? updatedPost : post
       )
@@ -488,15 +501,12 @@ const Explore = () => {
     );
   };
 
-  const currentDate = new Date().toLocaleDateString('en-US', { 
-    weekday: 'short', 
-    month: 'short', 
-    day: 'numeric' 
-  });
+  // Get current week range for display
+  const { start, end } = getWeekRange(weekOffset);
+  const weekRangeDisplay = `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
   
-  // Calculate the end date for the rolling 7-day window
-  const sevenDaysAgo = new Date(now - ONE_WEEK_MS).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const weekRangeDisplay = `${sevenDaysAgo} - ${currentDate}`;
+  const isCurrentWeek = weekOffset === 0;
+  const weekTitle = isCurrentWeek ? 'This Week' : weekOffset === 1 ? 'Last Week' : `${weekOffset} Weeks Ago`;
 
   return (
     <div className="app-container">
@@ -523,14 +533,82 @@ const Explore = () => {
 
         <div className="explore-container">
           
-          {/* Removed week-selector-container/buttons */}
+          {/* Week Navigation */}
+          <div className="week-selector-container" style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            gap: '16px', 
+            marginBottom: '24px',
+            padding: '16px',
+            backgroundColor: 'var(--card-bg)',
+            borderRadius: '12px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+          }}>
+            <button 
+              onClick={handlePreviousWeek}
+              style={{
+                padding: '8px 12px',
+                backgroundColor: 'var(--primary-color)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '14px',
+                fontWeight: '600',
+                transition: 'opacity 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
+              onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+            >
+              <ChevronLeftIcon size={18} />
+              Previous Week
+            </button>
+            
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--text-primary)' }}>
+                {weekTitle}
+              </div>
+              <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                {weekRangeDisplay}
+              </div>
+            </div>
+            
+            <button 
+              onClick={handleNextWeek}
+              disabled={isCurrentWeek}
+              style={{
+                padding: '8px 12px',
+                backgroundColor: isCurrentWeek ? 'var(--border-color)' : 'var(--primary-color)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: isCurrentWeek ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '14px',
+                fontWeight: '600',
+                opacity: isCurrentWeek ? '0.5' : '1',
+                transition: 'opacity 0.2s'
+              }}
+              onMouseEnter={(e) => !isCurrentWeek && (e.currentTarget.style.opacity = '0.8')}
+              onMouseLeave={(e) => !isCurrentWeek && (e.currentTarget.style.opacity = '1')}
+            >
+              Next Week
+              <ChevronRightIcon size={18} />
+            </button>
+          </div>
 
           <div className="explore-header">
             <h1 className="explore-title">
-              Fresh Projects 🚀 <span className="week-range">({weekRangeDisplay})</span>
+              Fresh Projects 🚀
             </h1>
             <p className="explore-description">
-                Projects are ranked by **recency (Newest First)** to ensure every new post gets discovered.
+              Browse projects by week. Posts are sorted by newest first to ensure every new post gets discovered.
             </p>
           </div>
 
@@ -554,8 +632,10 @@ const Explore = () => {
           ) : filteredPosts.length === 0 ? (
             <div className="empty-state">
               <div className="empty-state-icon">📭</div>
-              <h3 className="empty-state-title">No active posts in the last 7 days</h3>
-              <p className="empty-state-text">Be the first to post in this category!</p>
+              <h3 className="empty-state-title">No posts this week</h3>
+              <p className="empty-state-text">
+                {isCurrentWeek ? "Be the first to post this week!" : "No posts were created during this week."}
+              </p>
             </div>
           ) : (
             <div className="posts-grid">
