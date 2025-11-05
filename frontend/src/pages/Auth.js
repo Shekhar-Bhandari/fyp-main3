@@ -142,6 +142,8 @@ const Auth = () => {
                       value={formData.name}
                       autoFocus
                       disabled={loading}
+                      // 💡 Added fullWidth prop
+                      fullWidth
                     />
                   </div>
                 </Grid>
@@ -156,6 +158,8 @@ const Auth = () => {
                     type="email"
                     autoFocus={!isSignup}
                     disabled={loading}
+                    // 💡 Added fullWidth prop
+                    fullWidth
                   />
                 </div>
               </Grid>
@@ -169,6 +173,8 @@ const Auth = () => {
                     type={showPassword ? "text" : "password"}
                     handleShowPassword={handleShowPassword}
                     disabled={loading}
+                    // 💡 Added fullWidth prop
+                    fullWidth
                   />
                 </div>
               </Grid>

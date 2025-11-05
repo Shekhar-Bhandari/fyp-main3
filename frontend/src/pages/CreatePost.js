@@ -21,7 +21,7 @@ import PostServices from "../Services/PostServices";
 import toast from "react-hot-toast";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DeleteIcon from "@mui/icons-material/Delete";
-import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
+// Removed unused import: import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
 
 const SPECIALIZATIONS = [
   // ... (Your SPECIALIZATIONS array)
@@ -39,8 +39,11 @@ const SPECIALIZATIONS = [
   { value: 'other', label: 'Other' },
 ];
 
-// ⭐️ MATCH THIS LIMIT to the Mongoose Schema's maxlength
 const MAX_TITLE_LENGTH = 200; 
+
+// ⭐️ Deep Teal Palette (#0f766e)
+const TEAL_PRIMARY = '#0f766e'; // The requested color
+const TEAL_HOVER = '#0b5b54';  // Slightly darker for hover effect (Derived from #0f766e shades)
 
 
 const CreatePost = () => {
@@ -57,11 +60,10 @@ const CreatePost = () => {
     const token = JSON.parse(localStorage.getItem("todoapp"))?.token;
     if (!token) {
         toast.error("Please log in to create a post.");
-        navigate("/auth");
+        // 💡 UPDATED: Navigating to the root path ('/')
+        navigate("/"); 
     }
   }, [navigate]);
-
-  // ... (handleFileChange and handleRemoveMedia functions remain the same)
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -104,7 +106,6 @@ const CreatePost = () => {
       return;
     }
     
-    // ⭐️ FRONTEND VALIDATION: Check the title length before submitting
     if (title.trim().length > MAX_TITLE_LENGTH) {
       toast.error(`Title cannot exceed ${MAX_TITLE_LENGTH} characters.`);
       return;
@@ -135,8 +136,8 @@ const CreatePost = () => {
   };
 
   return (
-    <Container maxWidth="sm" sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h5" gutterBottom fontWeight="bold">
+    <Container maxWidth="sm" sx={{ mt: 4, mb: 4, bgcolor: 'white', borderRadius: 2, p: 4, boxShadow: 3 }}>
+      <Typography variant="h5" gutterBottom fontWeight="bold" sx={{ color: TEAL_PRIMARY }}>
         Create Post
       </Typography>
       
@@ -146,16 +147,13 @@ const CreatePost = () => {
           fullWidth
           required
           value={title}
-          // ⭐️ Limit input length in the DOM
           inputProps={{ maxLength: MAX_TITLE_LENGTH }} 
           onChange={(e) => setTitle(e.target.value)}
           sx={{ mb: 2 }}
-          
-          // ⭐️ Display error state if limit is exceeded
           error={title.length > MAX_TITLE_LENGTH} 
-          
-          // ⭐️ Provide helpful character counter text
           helperText={`${title.length}/${MAX_TITLE_LENGTH} characters`}
+          // Use 'success' for focus/label, which provides a nice green/teal shade for the underline/label
+          color="success" 
         />
         
         <TextField
@@ -167,10 +165,10 @@ const CreatePost = () => {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           sx={{ mb: 2 }}
+          color="success" 
         />
 
-        {/* ... (Rest of the specialization and file upload controls remain the same) ... */}
-        <FormControl fullWidth required sx={{ mb: 2 }}>
+        <FormControl fullWidth required sx={{ mb: 2 }} color="success"> 
           <InputLabel id="specialization-label">Specialization</InputLabel>
           <Select
             labelId="specialization-label"
@@ -193,6 +191,16 @@ const CreatePost = () => {
             component="label"
             startIcon={<CloudUploadIcon />}
             fullWidth
+            // ⭐️ Applied the deep teal color for the outlined button
+            sx={{ 
+              borderColor: TEAL_PRIMARY, 
+              color: TEAL_PRIMARY, 
+              '&:hover': { 
+                borderColor: TEAL_HOVER, 
+                color: TEAL_HOVER,
+                backgroundColor: 'rgba(15, 118, 110, 0.04)' // Very light teal ripple
+              } 
+            }}
           >
             Upload Image or Video
             <input
@@ -222,13 +230,14 @@ const CreatePost = () => {
                   />
                 </Box>
               )}
+              {/* Delete button remains red for danger/delete */}
               <IconButton
                 sx={{ 
                   position: 'absolute', 
                   top: 8, 
                   right: 8,
-                  bgcolor: 'rgba(0,0,0,0.5)',
-                  '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' }
+                  bgcolor: 'rgba(244, 67, 54, 0.8)', 
+                  '&:hover': { bgcolor: 'rgba(244, 67, 54, 1)' }
                 }}
                 onClick={handleRemoveMedia}
               >
@@ -242,10 +251,15 @@ const CreatePost = () => {
         <Button 
           type="submit" 
           variant="contained" 
-          color="primary"
           fullWidth
           disabled={uploading || title.length > MAX_TITLE_LENGTH}
           startIcon={uploading && <CircularProgress size={20} color="inherit" />}
+          // ⭐️ Applied the deep teal color for the primary button background
+          sx={{ 
+            bgcolor: TEAL_PRIMARY, 
+            '&:hover': { bgcolor: TEAL_HOVER },
+            '&:disabled': { bgcolor: 'rgba(0, 0, 0, 0.12)', color: 'rgba(0, 0, 0, 0.26)' }
+          }}
         >
           {uploading ? 'Creating Post...' : 'Create Post'}
         </Button>

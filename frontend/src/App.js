@@ -23,7 +23,7 @@ function App() {
       <Router>
         <Routes>
           {/* Authentication */}
-          <Route path="/auth" element={<Auth />} />
+          <Route path="/" element={<Auth />} />
           
           {/* Main App Routes */}
           <Route path="/home" element={<Home />} />

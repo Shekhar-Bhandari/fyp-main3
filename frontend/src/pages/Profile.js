@@ -365,7 +365,7 @@ const Profile = () => {
       if (error.response?.status === 401) {
         toast.error("Session expired. Please log in again.");
         localStorage.removeItem("todoapp");
-        navigate("/auth");
+        navigate("/");
       }
     } finally {
       setIsRefreshing(false);
@@ -430,7 +430,7 @@ const Profile = () => {
       localStorage.removeItem("todoapp");
       setCurrentUser(null);
       toast.success("Logged out successfully");
-      navigate("/auth");
+      navigate("/");
     }
   };
 
@@ -500,13 +500,13 @@ const Profile = () => {
       if (error.response?.status === 401) {
         toast.error("Session expired. Please log in again.");
         localStorage.removeItem("todoapp");
-        navigate("/auth");
+        navigate("/");
       } else if (error.response?.status === 400) {
         toast.error(error.response?.data?.message || "Invalid profile data.");
       } else if (error.response?.status === 404) {
         toast.error("User not found. Please log in again.");
         localStorage.removeItem("todoapp");
-        navigate("/auth");
+        navigate("/");
       } else {
         toast.error(error.response?.data?.message || "Failed to save profile. Please try again.");
       }

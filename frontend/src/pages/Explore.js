@@ -1,3 +1,5 @@
+// src/pages/Explore.js
+
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import PostServices from "../Services/PostServices";
@@ -200,7 +202,8 @@ const Explore = () => {
     setCurrentUser(null);
     setAllPosts([]);
     toast.success("Logged out successfully");
-    navigate("/auth");
+    // 💡 UPDATED: Navigate to the root path
+    navigate("/");
   };
 
   const handlePreviousWeek = () => {
@@ -249,7 +252,8 @@ const Explore = () => {
   const handleLike = async (postId) => {
     if (!currentUser?.token) {
       toast.error("You must be logged in to like a post");
-      navigate("/auth");
+      // 💡 UPDATED: Navigate to the root path
+      navigate("/");
       return;
     }
 
@@ -273,7 +277,8 @@ const Explore = () => {
     }
     if (!currentUser?.token) {
       toast.error("You must be logged in to comment.");
-      navigate("/auth");
+      // 💡 UPDATED: Navigate to the root path
+      navigate("/");
       return false;
     }
 

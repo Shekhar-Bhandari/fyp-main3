@@ -1,6 +1,6 @@
 .profile-setup-wrapper {
   min-height: 100vh;
-  background: linear-gradient(to bottom right, #7e5bef, #5a3ebf);
+  background: linear-gradient(to bottom right, #0f766e, #0d5f58);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -17,7 +17,7 @@
 }
 
 .profile-setup-header h1 {
-  color: #7e5bef;
+  color: #0f766e;
   font-size: 36px;
   font-weight: bold;
   text-align: center;
@@ -42,14 +42,14 @@
 
 .progress-bar {
   width: 100%;
-  background: #eee;
+  background: #ccfbf1;
   height: 8px;
   border-radius: 4px;
   overflow: hidden;
 }
 
 .progress-fill {
-  background: #7e5bef;
+  background: #0f766e;
   height: 100%;
   border-radius: 4px;
   transition: width 0.3s ease;
@@ -65,6 +65,7 @@
 .step-header h2 {
   font-size: 24px;
   font-weight: bold;
+  color: #0f766e;
 }
 
 .form-group {
@@ -75,6 +76,7 @@
   display: block;
   font-weight: 500;
   margin-bottom: 5px;
+  color: #0f766e;
 }
 
 .form-group input,
@@ -82,9 +84,15 @@
   width: 100%;
   padding: 10px 15px;
   border-radius: 10px;
-  border: 1px solid #ccc;
+  border: 1px solid #99f6e4;
   outline: none;
   font-size: 14px;
+  transition: border-color 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  border-color: #0f766e;
 }
 
 .form-group textarea {
@@ -113,17 +121,27 @@
   flex: 1;
   padding: 10px 15px;
   border-radius: 10px;
-  border: 1px solid #ccc;
+  border: 1px solid #99f6e4;
   outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.input-add-container input:focus {
+  border-color: #0f766e;
 }
 
 .input-add-container button {
-  background: #7e5bef;
+  background: #0f766e;
   color: #fff;
   border: none;
   padding: 0 15px;
   border-radius: 10px;
   cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.input-add-container button:hover {
+  background: #0d5f58;
 }
 
 .tags-container {
@@ -133,15 +151,21 @@
 }
 
 .tag {
-  background: #eee;
+  background: #ccfbf1;
+  color: #0f766e;
   padding: 5px 12px;
   border-radius: 20px;
   font-size: 14px;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tag:hover {
+  background: #99f6e4;
 }
 
 .selected-tag {
-  background: #7e5bef;
+  background: #0f766e;
   color: #fff;
 }
 
@@ -149,7 +173,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  background: #7e5bef;
+  background: #0f766e;
   color: #fff;
   padding: 5px 10px;
   border-radius: 20px;
@@ -158,6 +182,7 @@
 .social-links p {
   font-weight: 500;
   margin-bottom: 10px;
+  color: #0f766e;
 }
 
 .social-input {
@@ -171,15 +196,20 @@
   flex: 1;
   padding: 10px 15px;
   border-radius: 10px;
-  border: 1px solid #ccc;
+  border: 1px solid #99f6e4;
   outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.social-input input:focus {
+  border-color: #0f766e;
 }
 
 .navigation-buttons {
   display: flex;
   justify-content: space-between;
   margin-top: 30px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid #ccfbf1;
   padding-top: 20px;
 }
 
@@ -188,25 +218,38 @@
   border-radius: 10px;
   border: none;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .navigation-buttons button:disabled {
-  background: #eee;
-  color: #aaa;
+  background: #f0fdfa;
+  color: #99f6e4;
   cursor: not-allowed;
 }
 
 .navigation-buttons button:nth-child(1) {
-  background: #eee;
-  color: #333;
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.navigation-buttons button:nth-child(1):hover:not(:disabled) {
+  background: #99f6e4;
 }
 
 .navigation-buttons button:nth-child(2) {
   background: transparent;
-  color: #555;
+  color: #0f766e;
+}
+
+.navigation-buttons button:nth-child(2):hover {
+  background: #f0fdfa;
 }
 
 .navigation-buttons button:nth-child(3) {
-  background: #7e5bef;
+  background: #0f766e;
   color: #fff;
+}
+
+.navigation-buttons button:nth-child(3):hover:not(:disabled) {
+  background: #0d5f58;
 }

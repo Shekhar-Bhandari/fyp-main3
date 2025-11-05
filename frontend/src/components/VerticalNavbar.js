@@ -20,7 +20,8 @@ const VerticalNavbar = ({ currentUser, onLogout }) => {
     if (path === "/home") return "home";
     if (path === "/leaderboard") return "leaderboard";
     if (path === "/explore") return "explore";
-    if (path === "/profile" || path.startsWith("/profile")) return "profile";
+    // Checks for /profile and paths starting with /profile (e.g., /profile-setup)
+    if (path === "/profile" || path.startsWith("/profile")) return "profile"; 
     return "";
   };
 
@@ -35,11 +36,14 @@ const VerticalNavbar = ({ currentUser, onLogout }) => {
 
   const handleLogout = () => {
     if (onLogout) {
+      // If an onLogout prop is provided (e.g., from the parent component)
       onLogout();
     } else {
+      // Default logout logic
       localStorage.removeItem("todoapp");
       toast.success("Logged out successfully");
-      navigate("/auth");
+      // 💡 UPDATED: Navigate to the root path
+      navigate("/"); 
     }
   };
 
