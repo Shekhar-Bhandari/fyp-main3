@@ -1,3 +1,14 @@
+console.log("🚀 Server file loaded");
+
+console.log("ENV CHECK:", {
+  PORT: process.env.PORT,
+  MONGO_URI: !!process.env.MONGO_URI,
+  JWT_SECRET: !!process.env.JWT_SECRET,
+  CLIENT_URL: !!process.env.CLIENT_URL,
+});
+
+
+
 const express = require('express');
 const cors = require('cors');
 // ⭐️ CRITICAL FIX: Require dotenv and call config() immediately ⭐️
